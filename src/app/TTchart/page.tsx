@@ -3,6 +3,7 @@
 import * as React from "react";
 import {tokens,  Title1, makeStyles } from "@fluentui/react-components";
 import { DashboardCharts } from "@/componets/ChartComponents";
+import DashboardWithExport from "@/componets/DashboardWithExport";
 
 
 const useStyles = makeStyles({
@@ -24,10 +25,10 @@ export default function HomePage() {
         // FluentProvider applies the modern Microsoft theme (Fluent UI v9)
        
             <div className={styles.mainLayout}>
-                <Title1 className={styles.header}>FVAS & Solution Team Operations Dashboard</Title1>
-                
+{/*                 <Title1 className={styles.header}>FVAS & Solution Team Operations Dashboard</Title1>
+ */}                
                 {/* ⭐️ Renders the three charts in a professional, responsive grid ⭐️ */}
-                <DashboardCharts />
+                  <DashboardWithExport/>
 
             </div>
      
