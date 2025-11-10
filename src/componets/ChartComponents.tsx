@@ -1,31 +1,27 @@
 // src/components/ChartComponents.tsx
-
 "use client";
 
 import * as React from "react";
-import { useRef } from "react"; // 👈 Import useRef
-
 import { 
   Card, CardHeader, CardPreview, Title3, 
   makeStyles, shorthands, tokens,
-  Button, useId, 
-  // Add Toolbar and ToolbarButton for better header layout
-  Toolbar, ToolbarButton 
+  Button, useId
 } from "@fluentui/react-components";
-import { ArrowDownloadRegular, CalendarMonthRegular } from "@fluentui/react-icons"; // 👈 Import download icon
 import { Bar, Doughnut, Line } from "react-chartjs-2"; 
 import { 
   Chart as ChartJS, CategoryScale, LinearScale, 
   BarElement, Title, Tooltip, Legend, ArcElement, 
-  PointElement, LineElement, 
-  Chart
+  PointElement, LineElement, Chart
 } from "chart.js";
+
+// Import Download icon
+import { ArrowDownloadRegular } from "@fluentui/react-icons";
 
 import { DateRangePicker, Range } from "react-date-range";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { format } from "date-fns";
-
+import { CalendarMonthRegular } from "@fluentui/react-icons";
 
 import { 
   getHandlerPerformanceData, 
@@ -51,7 +47,6 @@ const useStyles = makeStyles({
     display: "grid",
     gridTemplateColumns: "repeat(2, 1fr)",
     gap: "20px",
-    
     ...shorthands.padding("20px", "0"),
     "@media (max-width: 992px)": {
       gridTemplateColumns: "1fr",
@@ -63,8 +58,6 @@ const useStyles = makeStyles({
     height: "450px",
     display: "flex",
     flexDirection: "column",
-    
-    
   },
   cardPreview: {
     flexGrow: 1,
@@ -82,8 +75,16 @@ const useStyles = makeStyles({
   dateButton: {
     fontWeight: 500,
   },
+  
+  // New style to right-align the download button in the header
+  cardHeaderWithAction: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+  },
 
-  // Overlay to darken background
+  // ✅ Overlay to darken background
   overlay: {
     position: "fixed",
     inset: 0,
@@ -92,7 +93,7 @@ const useStyles = makeStyles({
     zIndex: 1000,
   },
 
-  // Fixed centered popup (independent of button position)
+  // ✅ Responsive centered popup
   centeredPopup: {
     position: "fixed",
     top: "50%",
@@ -103,6 +104,95 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground1,
     ...shorthands.borderRadius(tokens.borderRadiusLarge),
     ...shorthands.padding("12px"),
+    maxWidth: "95vw",
+    maxHeight: "95vh",
+    overflow: "auto",
+    
+    // Mobile styles
+    "@media (max-width: 768px)": {
+      width: "95vw",
+      height: "auto",
+      ...shorthands.padding("8px"),
+      transform: "translate(-50%, -50%)",
+    },
+    
+    // Small mobile styles
+    "@media (max-width: 480px)": {
+      width: "98vw",
+      maxHeight: "90vh",
+      ...shorthands.padding("4px"),
+    },
+  },
+
+  // ✅ Responsive calendar container
+  calendarContainer: {
+    width: "100%",
+    height: "100%",
+    
+    "@media (max-width: 768px)": {
+      "& .rdrDateRangePickerWrapper": {
+        flexDirection: "column",
+      },
+      
+      "& .rdrCalendarWrapper": {
+        flex: "1 1 auto",
+        minWidth: "unset",
+      },
+      
+      "& .rdrMonthAndYearWrapper": {
+        padding: "8px 4px",
+      },
+      
+      "& .rdrMonth": {
+        width: "100%",
+      },
+      
+      "& .rdrWeekDays": {
+        ...shorthands.padding("0", "4px"),
+      },
+      
+      "& .rdrDays": {
+        ...shorthands.padding("0", "4px"),
+      },
+      
+      "& .rdrDay": {
+        height: "36px",
+        fontSize: "12px",
+      },
+      
+      "& .rdrDayNumber": {
+        fontSize: "12px",
+      },
+      
+      "& .rdrMonthName": {
+        fontSize: "14px",
+      },
+    },
+    
+    "@media (max-width: 480px)": {
+      "& .rdrMonthAndYearWrapper": {
+        padding: "6px 2px",
+      },
+      
+      "& .rdrDay": {
+        height: "32px",
+        fontSize: "11px",
+      },
+      
+      "& .rdrDayNumber": {
+        fontSize: "11px",
+        top: "0px",
+      },
+      
+      "& .rdrMonthName": {
+        fontSize: "12px",
+      },
+      
+      "& .rdrNextPrevButton": {
+        width: "24px",
+        height: "24px",
+      },
+    },
   },
 
   cleanCalendar: {
@@ -110,39 +200,70 @@ const useStyles = makeStyles({
       border: "none",
       fontFamily: tokens.fontFamilyBase,
     },
+    
+    // Single month layout for mobile
+    "@media (max-width: 768px)": {
+      "& .rdrDateRangePickerWrapper": {
+        flexDirection: "column",
+      },
+      
+      "& .rdrMonths": {
+        flexDirection: "column",
+      },
+      
+      "& .rdrMonth": {
+        width: "100% !important",
+      },
+    },
   },
-  // Style for the Toolbar in the CardHeader
-  cardHeaderToolbar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    width: "100%",
-  }
+
+  // ✅ Apply button container
+  applyButtonContainer: {
+    textAlign: "right",
+    marginTop: "10px",
+    
+    "@media (max-width: 480px)": {
+      marginTop: "8px",
+    },
+  },
+
+  // ✅ Close button for mobile
+  closeButton: {
+    "@media (max-width: 768px)": {
+      width: "100%",
+      marginTop: "8px",
+    },
+  },
 });
 
 // =======================================================
-// Helper for Download 👈 NEW
+// Helper function to handle the download logic
 // =======================================================
 
 /**
- * Downloads the chart image.
- * @param chartRef - React Ref object for the chart instance.
- * @param fileName - Desired file name for the download.
+ * Handles the download of the chart as a PNG image.
+ * @param chartRef The React ref object pointing to the Chart component instance.
+ * @param fileName The desired file name for the downloaded image.
  */
-const downloadChart = (chartRef: React.RefObject<Chart>, fileName: string) => {
-  if (chartRef.current) {
-    // Chart.js instance has a getBase64Image() method
-    const link = document.createElement('a');
-    link.href = chartRef.current.toBase64Image();
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  } else {
-    console.error("Chart reference not available for download.");
-  }
+const downloadChartImage = (chartRef: React.RefObject<Chart | null>, fileName: string) => {
+    const chart = chartRef.current;
+    if (chart) {
+        // Get the image data URL
+        const image = chart.toBase64Image("image/png", 1);
+        
+        // Create a temporary anchor element
+        const a = document.createElement('a');
+        a.href = image;
+        a.download = fileName + '.png';
+        
+        // Trigger the download
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    } else {
+        console.error("Chart instance not found.");
+    }
 };
-
 
 // =======================================================
 // Chart Wrapper
@@ -157,41 +278,41 @@ const ChartWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
 };
 
 // =======================================================
-// Charts
+// Charts (with Download Buttons)
 // =======================================================
 
 const HandlerPerformanceChart: React.FC = () => {
     const styles = useStyles();
-    // 👈 Create a ref for the chart
-   const chartRef = useRef<ChartJS | null>(null);
+    const chartRef = React.useRef<Chart<"bar">>(null);
+    const chartTitle = "Handler Performance: Total Tasks";
 
+    const handleDownload = () => {
+        downloadChartImage(chartRef, 'Handler_Performance_Chart');
+    };
 
     return (
         <Card className={styles.chartCard}>
-            {/* 👈 Updated CardHeader with Toolbar and Download Button */}
-            <CardHeader header={
-                <div className={styles.cardHeaderToolbar}>
-                    <Title3>Handler Performance: Total Tasks</Title3>
-                    <Toolbar size="small">
-                        <ToolbarButton
+            <CardHeader 
+                header={
+                    <div className={styles.cardHeaderWithAction}>
+                        <Title3>{chartTitle}</Title3>
+                        <Button 
+                            appearance="subtle"
                             icon={<ArrowDownloadRegular />}
-                            onClick={() => downloadChart(chartRef, "handler_performance_chart.png")}
-                            title="Download Chart"
-                        >
-                            Download Chart
-                        </ToolbarButton>
-                    </Toolbar>
-                </div>
-            } />
+                            onClick={handleDownload}
+                            aria-label="Download Handler Performance Chart"
+                            size="small"
+                        />
+                    </div>
+                } 
+            />
             <ChartWrapper>
-                {/* 👈 Pass the ref to the Bar component */}
                 <Bar 
                     ref={chartRef}
                     data={getHandlerPerformanceData()}
                     options={{
                         indexAxis: 'y',
                         responsive: true,
-                        // CRITICAL: Must be false for height: 100% to work
                         maintainAspectRatio: false, 
                         plugins: { 
                             legend: { display: false }, 
@@ -208,94 +329,104 @@ const HandlerPerformanceChart: React.FC = () => {
     );
 };
 
-
 const TaskDistributionChart = () => {
   const styles = useStyles();
-  // 👈 Create a ref for the chart
-  const chartRef = useRef<Chart>(null);
+  const chartRef = React.useRef<Chart<"doughnut">>(null);
+  const chartTitle = "Task Classification Distribution";
+
+  const handleDownload = () => {
+      downloadChartImage(chartRef, 'Task_Distribution_Chart');
+  };
 
   return (
     <Card className={styles.chartCard}>
-        {/* 👈 Updated CardHeader with Toolbar and Download Button */}
-        <CardHeader header={
-            <div className={styles.cardHeaderToolbar}>
-                <Title3>Task Classification Distribution</Title3>
-                <Toolbar size="small">
-                    <ToolbarButton
-                        icon={<ArrowDownloadRegular />}
-                        onClick={() => downloadChart(chartRef, "task_distribution_chart.png")}
-                        title="Download Chart"
-                    >
-                        Download Chart
-                    </ToolbarButton>
-                </Toolbar>
-            </div>
-        } />
+      <CardHeader 
+        header={
+          <div className={styles.cardHeaderWithAction}>
+              <Title3>{chartTitle}</Title3>
+              <Button 
+                  appearance="subtle"
+                  icon={<ArrowDownloadRegular />}
+                  onClick={handleDownload}
+                  aria-label="Download Task Distribution Chart"
+                  size="small"
+              />
+          </div>
+        } 
+      />
       <ChartWrapper>
-        {/* 👈 Pass the ref to the Doughnut component */}
-        <Doughnut ref={chartRef} data={getTaskDistributionData()} options={{ responsive: true, maintainAspectRatio: false }} />
+        <Doughnut 
+            ref={chartRef}
+            data={getTaskDistributionData()} 
+            options={{ responsive: true, maintainAspectRatio: false }} 
+        />
       </ChartWrapper>
     </Card>
   );
 };
-
-
 
 const ZonalTaskVolumeChart = () => {
   const styles = useStyles();
-  // 👈 Create a ref for the chart
-  const chartRef = useRef<Chart>(null);
+  const chartRef = React.useRef<Chart<"bar">>(null);
+  const chartTitle = "Task Volume by Zone/Region";
+
+  const handleDownload = () => {
+      downloadChartImage(chartRef, 'Zonal_Task_Volume_Chart');
+  };
 
   return (
     <Card className={styles.chartCard}>
-        {/* 👈 Updated CardHeader with Toolbar and Download Button */}
-        <CardHeader header={
-            <div className={styles.cardHeaderToolbar}>
-                <Title3>Task Volume by Zone/Region</Title3>
-                <Toolbar size="small">
-                    <ToolbarButton
-                        icon={<ArrowDownloadRegular />}
-                        onClick={() => downloadChart(chartRef, "zonal_task_volume_chart.png")}
-                        title="Download Chart"
-                    >
-                        Download Chart
-                    </ToolbarButton>
-                </Toolbar>
-            </div>
-        } />
+      <CardHeader 
+        header={
+          <div className={styles.cardHeaderWithAction}>
+              <Title3>{chartTitle}</Title3>
+              <Button 
+                  appearance="subtle"
+                  icon={<ArrowDownloadRegular />}
+                  onClick={handleDownload}
+                  aria-label="Download Zonal Task Volume Chart"
+                  size="small"
+              />
+          </div>
+        } 
+      />
       <ChartWrapper>
-        {/* 👈 Pass the ref to the Bar component */}
-        <Bar ref={chartRef} data={getZonalTaskData()} options={{ responsive: true, maintainAspectRatio: false }} />
+        <Bar 
+            ref={chartRef}
+            data={getZonalTaskData()} 
+            options={{ responsive: true, maintainAspectRatio: false }} 
+        />
       </ChartWrapper>
     </Card>
   );
 };
 
-
 const HistoryLineChart: React.FC = () => {
     const styles = useStyles();
-    // 👈 Create a ref for the chart
-    const chartRef = useRef<Chart>(null);
+    const chartRef = React.useRef<Chart<"line">>(null);
+    const chartTitle = "Historical Daily Task Volume";
+    
+    const handleDownload = () => {
+        downloadChartImage(chartRef, 'Historical_Daily_Task_Volume_Chart');
+    };
 
     return (
         <Card className={styles.chartCard}>
-            {/* 👈 Updated CardHeader with Toolbar and Download Button */}
-            <CardHeader header={
-                <div className={styles.cardHeaderToolbar}>
-                    <Title3>Historical Daily Task Volume</Title3>
-                    <Toolbar size="small">
-                        <ToolbarButton
+            <CardHeader 
+                header={
+                    <div className={styles.cardHeaderWithAction}>
+                        <Title3>{chartTitle}</Title3>
+                        <Button 
+                            appearance="subtle"
                             icon={<ArrowDownloadRegular />}
-                            onClick={() => downloadChart(chartRef, "historical_daily_task_volume_chart.png")}
-                            title="Download Chart"
-                        >
-                            Download Chart
-                        </ToolbarButton>
-                    </Toolbar>
-                </div>
-            } />
+                            onClick={handleDownload}
+                            aria-label="Download Historical Daily Task Volume Chart"
+                            size="small"
+                        />
+                    </div>
+                } 
+            />
             <ChartWrapper>
-                {/* 👈 Pass the ref to the Line component */}
                 <Line
                     ref={chartRef}
                     data={getTaskHistoryData()}
@@ -351,9 +482,25 @@ export const DashboardCharts: React.FC = () => {
     };
   }, [isOpen]);
 
+  // Close popup when clicking escape key
+  React.useEffect(() => {
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleEscape);
+      return () => {
+        document.removeEventListener('keydown', handleEscape);
+      };
+    }
+  }, [isOpen]);
+
   return (
-    <div style={{ padding: "20px" }}>
-      {/* Date Range Button */}
+    <div style={{ padding: "0px" }}>
+      {/* ✅ Date Range Button */}
       <div className={styles.dateRangeContainer}>
         <Button
           id={buttonId}
@@ -366,22 +513,31 @@ export const DashboardCharts: React.FC = () => {
         </Button>
       </div>
 
-      {/* Centered Popup */}
+      {/* ✅ Responsive Popup */}
       {isOpen && (
         <>
           <div className={styles.overlay} onClick={() => setIsOpen(false)} />
           <div className={`${styles.centeredPopup} ${styles.cleanCalendar}`}>
-            <DateRangePicker
-              ranges={range}
-              onChange={handleRangeChange}
-              moveRangeOnFirstSelection={false}
-              months={2}
-              direction="horizontal"
-              showSelectionPreview
-              rangeColors={[tokens.colorBrandBackground]}
-            />
-            <div style={{ textAlign: "right", marginTop: "10px" }}>
-              <Button appearance="primary" onClick={() => setIsOpen(false)}>
+            <div className={styles.calendarContainer}>
+              <DateRangePicker
+                ranges={range}
+                onChange={handleRangeChange}
+                moveRangeOnFirstSelection={false}
+                months={2}
+                direction="horizontal"
+                showSelectionPreview
+                rangeColors={[tokens.colorBrandBackground]}
+                // Responsive props
+                monthDisplayFormat="MMMM yyyy"
+                weekdayDisplayFormat="EEEEEE" // Short weekday names
+              />
+            </div>
+            <div className={styles.applyButtonContainer}>
+              <Button 
+                appearance="primary" 
+                onClick={() => setIsOpen(false)}
+                className={styles.closeButton}
+              >
                 Apply
               </Button>
             </div>
@@ -389,7 +545,7 @@ export const DashboardCharts: React.FC = () => {
         </>
       )}
 
-      {/* Charts Grid */}
+      {/* ✅ Charts Grid */}
       <div className={styles.chartGrid}>
         <HistoryLineChart />
         <HandlerPerformanceChart />
