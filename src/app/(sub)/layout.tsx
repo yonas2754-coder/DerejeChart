@@ -7,18 +7,18 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen">
+    <div >
       
       {/* 🌞 Sun-Themed Sidebar/Navigation */}
     
 
       {/* Main content area */}
-      <main className="w-full bg-white">
+   
         {/* The children here will be the dashboard/page.tsx or dashboard/settings/page.tsx */}
           <TTLayoutWrapper>
         {children}
         </TTLayoutWrapper>
-      </main>
+  
 
       
     </div>
