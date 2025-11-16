@@ -212,6 +212,8 @@ const useStyles = makeStyles({
         minHeight: "100vh", 
         boxSizing: 'border-box', 
         display: 'flex', 
+        alignItems: 'center',
+        justifyItems: 'center',
         flexDirection: 'column', 
     },
     toolbar: { display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center", },
@@ -537,7 +539,7 @@ export default function TTResultsPage() {
 
     // --- RENDERING ---
     if (isLoading) {
-        return <div className={styles.pageWrapper}><Spinner size="large" label="Loading service ticket data from the server..." /></div>;
+        return <div className={styles.pageWrapper}><Spinner size="large" label="Loading data from the server..." /></div>;
     }
 
     if (isError) {
