@@ -134,7 +134,7 @@ const useStyles = makeStyles({
         textDecorationLine: 'none',
         color: tokens.colorNeutralForeground1,
         ':hover': {
-            backgroundColor: tokens.colorNeutralBackgroundHover,
+            backgroundColor: tokens.colorNeutralBackground1Hover,
         },
     },
     drawerActive: {
