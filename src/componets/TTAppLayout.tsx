@@ -29,14 +29,11 @@ import {
     ChartMultipleRegular,
     Navigation24Regular,
     Dismiss24Regular,
-    Person24Regular,
-    Settings24Regular,
     SignOut24Regular,
-    // Note: Use descriptive icons
 } from '@fluentui/react-icons';
 
 // =======================
-// 1. STYLES (Kept concise using Fluent UI's makeStyles)
+// 1. STYLES (CORRECTED)
 // =======================
 const useStyles = makeStyles({
     // Renamed headerContainer to appHeader for standard clarity
@@ -102,18 +99,50 @@ const useStyles = makeStyles({
         alignItems: 'center',
         gap: tokens.spacingHorizontalS,
     },
-    // ... (rest of drawer styles remain the same)
+    // --- DRAWER STYLES ---
     drawerBody: {
         display: 'flex',
         flexDirection: 'column',
         gap: tokens.spacingVerticalM,
         paddingTop: tokens.spacingVerticalM,
     },
+    /**
+     * **FIXED:** Added missing style definition for drawerProfile.
+     */
+    drawerProfile: {
+        display: 'flex',
+        alignItems: 'center',
+        gap: tokens.spacingHorizontalM,
+        ...shorthands.padding(tokens.spacingVerticalS, tokens.spacingHorizontalM),
+        ...shorthands.borderBottom('1px', 'solid', tokens.colorNeutralStroke2),
+        marginBottom: tokens.spacingVerticalM,
+    },
+    /**
+     * **FIXED:** Added missing style definition for drawerDivider.
+     */
+    drawerDivider: {
+        height: '1px',
+        backgroundColor: tokens.colorNeutralStroke2,
+        ...shorthands.margin('0', '0', tokens.spacingVerticalM, '0'),
+    },
     drawerLink: {
-        // ... (styles omitted for brevity)
+        display: 'flex',
+        alignItems: 'center',
+        gap: tokens.spacingHorizontalM,
+        ...shorthands.padding(tokens.spacingVerticalS, tokens.spacingHorizontalM),
+        ...shorthands.borderRadius(tokens.borderRadiusMedium),
+        textDecorationLine: 'none',
+        color: tokens.colorNeutralForeground1,
+        ':hover': {
+            backgroundColor: tokens.colorNeutralBackgroundHover,
+        },
     },
     drawerActive: {
-        // ... (styles omitted for brevity)
+        backgroundColor: tokens.colorBrandBackgroundSelected,
+        color: tokens.colorNeutralForegroundOnBrand,
+        ':hover': {
+            backgroundColor: tokens.colorBrandBackgroundSelected, // keep same color on hover when active
+        },
     },
 });
 
@@ -230,8 +259,6 @@ export default function TTNavBar({ user, onSignOut }: ITTNavBarProps) {
                                 </MenuTrigger>
                                 <MenuPopover>
                                     <MenuList>
-                                      {/*   <MenuItem icon={<Person24Regular />}>Profile</MenuItem>
-                                        <MenuItem icon={<Settings24Regular />}>Settings</MenuItem> */}
                                         <MenuItem icon={<SignOut24Regular />} onClick={handleSignOut}>
                                             Sign Out
                                         </MenuItem>
@@ -302,14 +329,6 @@ export default function TTNavBar({ user, onSignOut }: ITTNavBarProps) {
 
                     <div className={styles.drawerDivider} />
 
-                    {/* User Action Links */}
-                   {/*  <Link href="/profile" className={styles.drawerLink} onClick={closeDrawer}>
-                        <Person24Regular /> Profile
-                    </Link>
-                    <Link href="/settings" className={styles.drawerLink} onClick={closeDrawer}>
-                        <Settings24Regular /> Settings
-                    </Link> */}
-                    
                     {/* Sign Out Button (Styled to look like a link) */}
                     <Button
                         appearance="transparent"
