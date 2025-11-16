@@ -13,7 +13,7 @@ export default function DashboardLayout({
     
 
       {/* Main content area */}
-      <main className="flex-1 bg-white">
+      <main className="w-full bg-white">
         {/* The children here will be the dashboard/page.tsx or dashboard/settings/page.tsx */}
           <TTLayoutWrapper>
         {children}
