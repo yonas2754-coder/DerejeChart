@@ -142,7 +142,7 @@ export default function LoginForm() {
     <div style={styles.container}>
       <Card style={styles.card}>
         <CardHeader
-          header={<div style={styles.title}>Welcome to the Portal</div>}
+          header={<div style={styles.title}>Welcome to FSASS Section</div>}
           description={<Caption1 style={styles.captionHeader}>Sign in securely with your credentials.</Caption1>}
         />
         <CardPreview>
