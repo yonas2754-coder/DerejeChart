@@ -224,7 +224,7 @@ export default function TTNavBar({ user, onSignOut }: ITTNavBarProps) {
                     {/* Logo and Application Title */}
                     <div className={styles.logoArea}>
                         <img src="/photoDagm3.png" alt="Ethio Telecom Logo" />
-                        <Text weight="semibold" size={400}>📡 FSASS Section</Text>
+                        <Text weight="semibold" size={400}>📡 FSAS&S Section</Text>
                     </div>
 
                     {/* Desktop Navigation Links */}
@@ -297,7 +297,7 @@ export default function TTNavBar({ user, onSignOut }: ITTNavBarProps) {
                             />
                         }
                     >
-                        📡 FSASS Section
+                        📡 FSAS&S Section
                     </DrawerHeaderTitle>
                 </DrawerHeader>
 

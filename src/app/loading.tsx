@@ -28,7 +28,7 @@ export default function Loading(): React.ReactElement {
     <div className={styles.container}>
       {/* Fluent UI Spinner */}
       <Spinner size="huge" label="Loading content..." />
-      <Title2>Preparing your dashboard...</Title2>
+      <Title2>Preparing for you...</Title2>
     </div>
   );
 }

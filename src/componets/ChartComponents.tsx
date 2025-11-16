@@ -89,6 +89,7 @@ const useStyles = makeStyles({
         ...shorthands.margin("0", "0", "8px", "0"),
     },
     sectionTitle: {
+        display:'flex',justifyContent:'center' ,alignItems:'center', gap:'10px' ,
         ...shorthands.margin("20px", "0", "10px", "0"), color: tokens.colorNeutralForeground1,
     },
     kpiValue: {

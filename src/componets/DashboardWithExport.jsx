@@ -30,7 +30,15 @@ const BRAND = {
   ACCENT: "#87C045",
   LIGHT_BLUE: "#1E3B6D", // Color for visual depth/metric boxes
 };
-
+const getFileSafeDate = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    // Months are 0-indexed, so add 1 and pad with zero
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    // Format: YYYY-MM-DD
+    return `${year}-${month}-${day}`;
+};
 const getCurrentDateTime = () => {
     // Generates a professional date and time string, e.g., "October 20, 2025, 10:30 AM"
     return new Date().toLocaleDateString('en-US', { 
@@ -42,9 +50,10 @@ const getCurrentDateTime = () => {
 };
 
 const REPORT = {
-  TITLE: "FSASS Section Weekly Performance Report and Daily Activities",
+  TITLE: "FSAS&S Section Activity and Resource Management",
   PERIOD: `Generated on: ${getCurrentDateTime()}`, // FIXED: Using valid Date function
-  FOOTER: "FSAS&S Section Performance Report",
+  FOOTER: "FSAS&S Section Performance Report",// NEW: File-safe date tag for the filename
+  FILE_DATE_TAG: getFileSafeDate(),
 };
 
 // --- EXECUTIVE SUMMARY DATA (Cleaned of all artifacts) ---
@@ -520,10 +529,10 @@ const exportPpt = async (images, logo, telebirr) => {
     color: COLOR.WHITE,
     fontFace: "Segoe UI",
   });
-
-  await ppt.writeFile({
-    fileName: "FSASS_Weekly_Performance_Report_Professional.pptx",
+await ppt.writeFile({
+    fileName: `FSASS_Weekly_Performance_Report_${REPORT.FILE_DATE_TAG}_Professional.pptx`,
   });
+
 };
 
 // -----------------------------------------------------------------------------
@@ -540,7 +549,7 @@ export const DashboardWithExport = () => {
   // Load logos once
   React.useEffect(() => {
     loadImageAsBase64("/photoDagm3.png").then(setLogo);
-    loadImageAsBase64("/telebirr-logo.png").then(setTelebirr);
+   // loadImageAsBase64("/telebirr-logo.png").then(setTelebirr);
   }, []);
 
   // Extract required Chart.js canvases by index
