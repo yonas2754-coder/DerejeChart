@@ -1,0 +1,12 @@
+import type { Prisma } from '@prisma/client';
+import * as z from 'zod';
+import { TroubleTicketOrderByWithRelationInputObjectSchema as TroubleTicketOrderByWithRelationInputObjectSchema } from './objects/TroubleTicketOrderByWithRelationInput.schema';
+import { TroubleTicketWhereInputObjectSchema as TroubleTicketWhereInputObjectSchema } from './objects/TroubleTicketWhereInput.schema';
+import { TroubleTicketWhereUniqueInputObjectSchema as TroubleTicketWhereUniqueInputObjectSchema } from './objects/TroubleTicketWhereUniqueInput.schema';
+import { TroubleTicketCountAggregateInputObjectSchema as TroubleTicketCountAggregateInputObjectSchema } from './objects/TroubleTicketCountAggregateInput.schema';
+import { TroubleTicketMinAggregateInputObjectSchema as TroubleTicketMinAggregateInputObjectSchema } from './objects/TroubleTicketMinAggregateInput.schema';
+import { TroubleTicketMaxAggregateInputObjectSchema as TroubleTicketMaxAggregateInputObjectSchema } from './objects/TroubleTicketMaxAggregateInput.schema';
+
+export const TroubleTicketAggregateSchema: z.ZodType<Prisma.TroubleTicketAggregateArgs> = z.object({ orderBy: z.union([TroubleTicketOrderByWithRelationInputObjectSchema, TroubleTicketOrderByWithRelationInputObjectSchema.array()]).optional(), where: TroubleTicketWhereInputObjectSchema.optional(), cursor: TroubleTicketWhereUniqueInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), _count: z.union([ z.literal(true), TroubleTicketCountAggregateInputObjectSchema ]).optional(), _min: TroubleTicketMinAggregateInputObjectSchema.optional(), _max: TroubleTicketMaxAggregateInputObjectSchema.optional() }).strict() as unknown as z.ZodType<Prisma.TroubleTicketAggregateArgs>;
+
+export const TroubleTicketAggregateZodSchema = z.object({ orderBy: z.union([TroubleTicketOrderByWithRelationInputObjectSchema, TroubleTicketOrderByWithRelationInputObjectSchema.array()]).optional(), where: TroubleTicketWhereInputObjectSchema.optional(), cursor: TroubleTicketWhereUniqueInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), _count: z.union([ z.literal(true), TroubleTicketCountAggregateInputObjectSchema ]).optional(), _min: TroubleTicketMinAggregateInputObjectSchema.optional(), _max: TroubleTicketMaxAggregateInputObjectSchema.optional() }).strict();

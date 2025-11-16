@@ -1,557 +1,695 @@
-// src/components/ChartComponents.tsx
 "use client";
 
 import * as React from "react";
 import { 
-  Card, CardHeader, CardPreview, Title3, 
-  makeStyles, shorthands, tokens,
-  Button, useId
+    Card, CardHeader, CardPreview, Title3, Title1,
+    makeStyles, shorthands, tokens, mergeClasses, 
+    Button, Label, Divider, Text, Slider,
+    Field, Spinner,
 } from "@fluentui/react-components";
+import { DatePicker } from "@fluentui/react-datepicker-compat"; 
 import { Bar, Doughnut, Line } from "react-chartjs-2"; 
 import { 
-  Chart as ChartJS, CategoryScale, LinearScale, 
-  BarElement, Title, Tooltip, Legend, ArcElement, 
-  PointElement, LineElement, Chart
+    Chart as ChartJS, CategoryScale, LinearScale, 
+    BarElement, Title, Tooltip, Legend, ArcElement, 
+    PointElement, LineElement, Chart, ChartOptions
 } from "chart.js";
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+import { format, subDays } from "date-fns";
 
-// Import Download icon
-import { ArrowDownloadRegular } from "@fluentui/react-icons";
-
-import { DateRangePicker, Range } from "react-date-range";
-import "react-date-range/dist/styles.css";
-import "react-date-range/dist/theme/default.css";
-import { format } from "date-fns";
-import { CalendarMonthRegular } from "@fluentui/react-icons";
+// Import Icons
+import { 
+    ArrowDownloadRegular, ArrowUpRegular, ArrowDownRegular, 
+    SettingsRegular, EqualOffRegular, CalendarMonthRegular 
+} from "@fluentui/react-icons";
 
 import { 
-  getHandlerPerformanceData, 
-  getTaskDistributionData, 
-  getZonalTaskData, 
-  getTaskHistoryData 
-} from "../data/data";
+    useDashboardData, 
+    DashboardAPIResponse, 
+    TaskType,
+    WeeklyTrendAPIResponse,
+} from "@/hooks/useDashboardData"; 
 
 // =======================================================
 // Chart.js Setup
 // =======================================================
 ChartJS.register(
-  CategoryScale, LinearScale, BarElement, 
-  Title, Tooltip, Legend, ArcElement,
-  PointElement, LineElement
+    CategoryScale, LinearScale, BarElement, 
+    Title, Tooltip, Legend, ArcElement, 
+    PointElement, LineElement,
+    ChartDataLabels
 );
 
+
 // =======================================================
-// Styles
+// Styles & Helpers
 // =======================================================
 const useStyles = makeStyles({
-  chartGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "20px",
-    ...shorthands.padding("20px", "0"),
-    "@media (max-width: 992px)": {
-      gridTemplateColumns: "1fr",
+    chartGrid: {
+        display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "24px", 
+        ...shorthands.padding("24px", "0"),
+        "@media (max-width: 992px)": { gridTemplateColumns: "1fr", gap: "16px", },
     },
-  },
-  chartCard: {
-    ...shorthands.padding("20px"),
-    boxShadow: tokens.shadow8,
-    height: "450px",
-    display: "flex",
-    flexDirection: "column",
-  },
-  cardPreview: {
-    flexGrow: 1,
-  },
-  chartContainer: {
-    height: "100%",
-    width: "100%",
-  },
-  dateRangeContainer: {
-    display: "flex",
-    justifyContent: "flex-start",
-    alignItems: "center",
-    marginBottom: "20px",
-  },
-  dateButton: {
-    fontWeight: 500,
-  },
-  
-  // New style to right-align the download button in the header
-  cardHeaderWithAction: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    width: "100%",
-  },
-
-  // ✅ Overlay to darken background
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    backdropFilter: "blur(8px)",
-    zIndex: 1000,
-  },
-
-  // ✅ Responsive centered popup
-  centeredPopup: {
-    position: "fixed",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    zIndex: 1100,
-    boxShadow: tokens.shadow28,
-    backgroundColor: tokens.colorNeutralBackground1,
-    ...shorthands.borderRadius(tokens.borderRadiusLarge),
-    ...shorthands.padding("12px"),
-    maxWidth: "95vw",
-    maxHeight: "95vh",
-    overflow: "auto",
-    
-    // Mobile styles
-    "@media (max-width: 768px)": {
-      width: "95vw",
-      height: "auto",
-      ...shorthands.padding("8px"),
-      transform: "translate(-50%, -50%)",
+    // Standard Card Height (e.g., 480px)
+    chartCard: {
+        boxShadow: tokens.shadow16, ...shorthands.padding("16px"), height: "480px", 
+        display: "flex", flexDirection: "column", ...shorthands.borderRadius(tokens.borderRadiusMedium),
     },
-    
-    // Small mobile styles
-    "@media (max-width: 480px)": {
-      width: "98vw",
-      maxHeight: "90vh",
-      ...shorthands.padding("4px"),
+    // Card that is approximately twice the height (960px)
+    doubleHeightCard: { 
+        boxShadow: tokens.shadow16, ...shorthands.padding("16px"), height: "960px", 
+        display: "flex", flexDirection: "column", ...shorthands.borderRadius(tokens.borderRadiusMedium),
     },
-  },
-
-  // ✅ Responsive calendar container
-  calendarContainer: {
-    width: "100%",
-    height: "100%",
-    
-    "@media (max-width: 768px)": {
-      "& .rdrDateRangePickerWrapper": {
-        flexDirection: "column",
-      },
-      
-      "& .rdrCalendarWrapper": {
-        flex: "1 1 auto",
-        minWidth: "unset",
-      },
-      
-      "& .rdrMonthAndYearWrapper": {
-        padding: "8px 4px",
-      },
-      
-      "& .rdrMonth": {
-        width: "100%",
-      },
-      
-      "& .rdrWeekDays": {
-        ...shorthands.padding("0", "4px"),
-      },
-      
-      "& .rdrDays": {
-        ...shorthands.padding("0", "4px"),
-      },
-      
-      "& .rdrDay": {
-        height: "36px",
-        fontSize: "12px",
-      },
-      
-      "& .rdrDayNumber": {
-        fontSize: "12px",
-      },
-      
-      "& .rdrMonthName": {
-        fontSize: "14px",
-      },
+    kpiCard: {
+        boxShadow: tokens.shadow8, ...shorthands.padding("16px"), height: "150px", 
+        display: "flex", flexDirection: "column", justifyContent: "space-between", 
+        ...shorthands.borderRadius(tokens.borderRadiusMedium),
     },
-    
-    "@media (max-width: 480px)": {
-      "& .rdrMonthAndYearWrapper": {
-        padding: "6px 2px",
-      },
-      
-      "& .rdrDay": {
-        height: "32px",
-        fontSize: "11px",
-      },
-      
-      "& .rdrDayNumber": {
-        fontSize: "11px",
-        top: "0px",
-      },
-      
-      "& .rdrMonthName": {
-        fontSize: "12px",
-      },
-      
-      "& .rdrNextPrevButton": {
-        width: "24px",
-        height: "24px",
-      },
+    kpiGrid: {
+        display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "24px", 
+        ...shorthands.padding("0", "0", "24px", "0"),
+        "@media (max-width: 992px)": { gridTemplateColumns: "1fr", gap: "16px", },
     },
-  },
-
-  cleanCalendar: {
-    "& .rdrCalendarWrapper": {
-      border: "none",
-      fontFamily: tokens.fontFamilyBase,
+    cardPreview: {
+        flexGrow: 1, ...shorthands.padding("0"),
     },
-    
-    // Single month layout for mobile
-    "@media (max-width: 768px)": {
-      "& .rdrDateRangePickerWrapper": {
-        flexDirection: "column",
-      },
-      
-      "& .rdrMonths": {
-        flexDirection: "column",
-      },
-      
-      "& .rdrMonth": {
-        width: "100% !important",
-      },
+    chartContainer: {
+        height: "100%", width: "100%", display: 'flex', alignItems: 'center', justifyContent: 'center',
     },
-  },
-
-  // ✅ Apply button container
-  applyButtonContainer: {
-    textAlign: "right",
-    marginTop: "10px",
-    
-    "@media (max-width: 480px)": {
-      marginTop: "8px",
+    controlBar: {
+        backgroundColor: tokens.colorNeutralBackground1, ...shorthands.padding("12px", "20px"),
+        ...shorthands.borderRadius(tokens.borderRadiusMedium), boxShadow: tokens.shadow8, marginBottom: "20px",
     },
-  },
-
-  // ✅ Close button for mobile
-  closeButton: {
-    "@media (max-width: 768px)": {
-      width: "100%",
-      marginTop: "8px",
+    controlGroup: {
+        display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap',
     },
-  },
+    sliderContainer: { minWidth: '220px', flexShrink: 0, },
+    cardHeaderWithAction: {
+        display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", 
+        ...shorthands.margin("0", "0", "8px", "0"),
+    },
+    sectionTitle: {
+        ...shorthands.margin("20px", "0", "10px", "0"), color: tokens.colorNeutralForeground1,
+    },
+    kpiValue: {
+        fontWeight: 600, fontSize: tokens.fontSizeHero700, lineHeight: tokens.lineHeightHero700,
+    },
+    kpiChange: {
+        display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600,
+    },
+    kpiTrendPositive: { color: tokens.colorPaletteGreenForeground1, },
+    kpiTrendNegative: { color: tokens.colorPaletteRedForeground1, },
+    kpiTrendNeutral: { color: tokens.colorNeutralForeground3, },
+    dateControl: { display: 'flex', alignItems: 'center', gap: '12px', },
+    resetButton: { marginTop: '18px', },
+    loadingOverlay: {
+        position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+        backgroundColor: 'rgba(255, 255, 255, 0.7)', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', zIndex: 10,
+    }
 });
 
-// =======================================================
-// Helper function to handle the download logic
-// =======================================================
-
-/**
- * Handles the download of the chart as a PNG image.
- * @param chartRef The React ref object pointing to the Chart component instance.
- * @param fileName The desired file name for the downloaded image.
- */
 const downloadChartImage = (chartRef: React.RefObject<Chart | null>, fileName: string) => {
     const chart = chartRef.current;
     if (chart) {
-        // Get the image data URL
+        // Use chart.toBase64Image for downloading
         const image = chart.toBase64Image("image/png", 1);
-        
-        // Create a temporary anchor element
         const a = document.createElement('a');
-        a.href = image;
-        a.download = fileName + '.png';
-        
-        // Trigger the download
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    } else {
-        console.error("Chart instance not found.");
-    }
+        a.href = image; a.download = fileName + '.png';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } else { console.error("Chart instance not found."); }
+};
+
+const ChartWrapper: React.FC<React.PropsWithChildren<{ isLoading: boolean }>> = ({ children, isLoading }) => {
+    const styles = useStyles();
+    return (
+        <CardPreview className={styles.cardPreview} style={{ position: 'relative' }}>
+            <div className={styles.chartContainer}>
+                {children}
+            </div>
+            {isLoading && (
+                <div className={styles.loadingOverlay}>
+                    <Spinner label="Loading Data..." />
+                </div>
+            )}
+        </CardPreview>
+    );
 };
 
 // =======================================================
-// Chart Wrapper
+// KPI Card Component
 // =======================================================
-const ChartWrapper: React.FC<React.PropsWithChildren> = ({ children }) => {
-  const styles = useStyles();
-  return (
-    <CardPreview className={styles.cardPreview}>
-      <div className={styles.chartContainer}>{children}</div>
-    </CardPreview>
-  );
+interface KpiCardProps {
+    taskType: TaskType;
+    chartData: WeeklyTrendAPIResponse['weeklyTrend'][TaskType]; 
+    numWeeks: number;
+    isLoading: boolean;
+}
+
+const KpiCard: React.FC<KpiCardProps> = ({ taskType, chartData, numWeeks, isLoading }) => {
+    const styles = useStyles();
+    const { currentWeekTotal, percentageChange } = chartData;
+    
+    const isPositiveChange = percentageChange > 0;
+    const isNeutral = percentageChange === 0 || percentageChange === -999.9; 
+    
+    const trendClass = isNeutral 
+        ? styles.kpiTrendNeutral
+        : isPositiveChange 
+            ? styles.kpiTrendPositive 
+            : styles.kpiTrendNegative;
+
+    const trendIcon = isNeutral 
+        ? <EqualOffRegular /> 
+        : isPositiveChange 
+            ? <ArrowUpRegular /> // ArrowUpRegular for positive growth
+            : <ArrowDownRegular />; // ArrowDownRegular for negative growth
+            
+    const referenceLabel = numWeeks === 2 ? 'Last Week' : `Prior ${numWeeks - 1} Wk Avg`;
+    const percentageText = percentageChange === -999.9 
+        ? '∞ %' 
+        : (percentageChange === 0 ? '±0%' : `${Math.abs(percentageChange).toFixed(1)}%`);
+
+    return (
+        <Card className={styles.kpiCard} style={{ position: 'relative' }}> 
+            <Title3>{taskType} Tasks</Title3>
+            <Title1 className={styles.kpiValue}>{currentWeekTotal}</Title1>
+            <div className={styles.kpiChange}>
+                <Text className={trendClass}>{trendIcon}</Text>
+                <Text className={trendClass}>
+                    {percentageText}
+                </Text>
+                <Text size={200} className={styles.kpiTrendNeutral}>
+                    vs. {referenceLabel}
+                </Text>
+            </div>
+            {/* KPI Loading Overlay (uses isTrendLoading) */}
+            {isLoading && (
+                <div className={styles.loadingOverlay}>
+                    <Spinner size="medium" label="Loading Data..." />
+                </div>
+            )}
+        </Card>
+    );
 };
 
+
 // =======================================================
-// Charts (with Download Buttons)
+// Task Comparison Chart Card (Weekly Trend)
+// =======================================================
+interface TaskComparisonChartProps {
+    taskType: TaskType;
+    chartData: WeeklyTrendAPIResponse['weeklyTrend'][TaskType]; 
+    numWeeks: number; 
+    isLoading: boolean;
+}
+
+const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType, chartData, numWeeks, isLoading }) => {
+    const styles = useStyles();
+    const chartRef = React.useRef<Chart<'bar'>>(null);
+    const chartTitle = `${taskType} Trend`;
+    
+    const referenceLabel = numWeeks === 2 ? 'vs. Last Week' : `vs. Prior ${numWeeks - 1} Wk Avg`;
+
+    const handleDownload = () => {
+        downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
+    };
+
+    const chartOptions: ChartOptions<"bar"> = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            title: { display: false }, // FIX: Removed internal chart title to prevent overlap with CardHeader title
+            tooltip: {
+                callbacks: {
+                    title: (context) => context[0].label, 
+                    label: (context) => `Total Tasks: ${context.formattedValue}`, 
+                    afterBody: (context) => {
+                        // Logic for displaying percentage change in the tooltip for the current week only
+                        if (context[0].dataIndex === chartData.labels.length - 1) {
+                            const percentage = chartData.percentageChange;
+                            const sign = percentage >= 0 ? '▲' : '▼'; 
+                            const indicator = percentage === 0 
+                                ? '±0%' 
+                                : (percentage === -999.9 ? '∞ %' : `${sign}${Math.abs(percentage).toFixed(1)}%`);
+                            return `\nOverall ${referenceLabel}: ${indicator}`;
+                        }
+                        return '';
+                    }
+                }
+            },
+            datalabels: {
+                anchor: 'end',
+                align: 'top',
+                offset: 4,
+                formatter: (value: number, context) => {
+                    const isCurrentWeek = context.dataIndex === chartData.labels.length - 1;
+                    if (isCurrentWeek) {
+                        return value.toString(); // Show count for current week
+                    } 
+                    
+                    // Logic to display change vs. current week for past weeks (Advanced)
+                    const currentWeekTotal = chartData.currentWeekTotal;
+                    const priorWeekTotal = value;
+                    
+                    if (priorWeekTotal === 0 && currentWeekTotal === 0) { return 'N/A'; }
+                    
+                    if (priorWeekTotal === 0 && currentWeekTotal > 0) { return `+${currentWeekTotal} T`; }
+                    if (currentWeekTotal === 0 && priorWeekTotal > 0) { return `-${priorWeekTotal} T`; }
+                    
+                    const percentage = ((priorWeekTotal - currentWeekTotal) / priorWeekTotal) * 100;
+                    const absPercentage = Math.abs(percentage);
+                    const sign = percentage > 0 ? '▼' : (percentage < 0 ? '▲' : '±');
+                    
+                    return [`${sign}${absPercentage.toFixed(1)}%`, `Total: ${value}`];
+                },
+                color: (context) => {
+                    const isCurrentWeek = context.dataIndex === chartData.labels.length - 1;
+                    if (isCurrentWeek) { return tokens.colorNeutralForeground1; } 
+                    
+                    const priorWeekTotal = context.dataset.data[context.dataIndex] as number;
+                    const currentWeekTotal = chartData.currentWeekTotal;
+                    
+                    if (priorWeekTotal === 0 && currentWeekTotal === 0) { return tokens.colorNeutralForeground3; }
+                    if (priorWeekTotal === 0 && currentWeekTotal > 0) { return tokens.colorPaletteRedForeground1; }
+                    if (currentWeekTotal === 0 && priorWeekTotal > 0) { return tokens.colorPaletteGreenForeground1; }
+
+                    const percentage = ((priorWeekTotal - currentWeekTotal) / priorWeekTotal) * 100;
+                    if (percentage > 0) { return tokens.colorPaletteGreenForeground1; } 
+                    if (percentage < 0) { return tokens.colorPaletteRedForeground1; } 
+                    return tokens.colorNeutralForeground3;
+                },
+                font: { weight: 'bold' as const, size: 10, },
+            }
+        },
+        scales: {
+            x: { title: { display: true, text: 'Week' }, grid: { display: false } },
+            y: { title: { display: true, text: 'Total Task Count' }, min: 0 }
+        },
+    };
+    
+    // Apply bar thickness directly to the dataset
+    const updatedDatasets = chartData.datasets.map(dataset => ({
+        ...dataset,
+        maxBarThickness: 40, // Applied maxBarThickness
+    }));
+
+    const updatedChartData = {
+        ...chartData,
+        datasets: updatedDatasets
+    };
+
+    return (
+        <Card className={styles.chartCard}>
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Bar ref={chartRef} data={updatedChartData} options={chartOptions}/>
+            </ChartWrapper>
+        </Card>
+    );
+};
+
+
+// =======================================================
+// Date Dependent Charts
 // =======================================================
 
-const HandlerPerformanceChart: React.FC = () => {
+const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDate: Date; isLoading: boolean }> = ({ data, selectedDate, isLoading }) => {
     const styles = useStyles();
     const chartRef = React.useRef<Chart<"bar">>(null);
-    const chartTitle = "Handler Performance: Total Tasks";
+    const chartTitle = "Handler Performance: Total Tasks (Stacked)";
+    const handleDownload = () => downloadChartImage(chartRef, 'Handler_Performance_Chart');
 
-    const handleDownload = () => {
-        downloadChartImage(chartRef, 'Handler_Performance_Chart');
+    // Apply bar thickness directly to the dataset
+    const updatedDatasets = data.handlerPerformance.datasets.map(dataset => ({
+        ...dataset,
+        maxBarThickness: 40, // Applied maxBarThickness
+    }));
+
+    const updatedChartData = {
+        ...data.handlerPerformance,
+        datasets: updatedDatasets
     };
 
     return (
         <Card className={styles.chartCard}>
-            <CardHeader 
-                header={
-                    <div className={styles.cardHeaderWithAction}>
-                        <Title3>{chartTitle}</Title3>
-                        <Button 
-                            appearance="subtle"
-                            icon={<ArrowDownloadRegular />}
-                            onClick={handleDownload}
-                            aria-label="Download Handler Performance Chart"
-                            size="small"
-                        />
-                    </div>
-                } 
-            />
-            <ChartWrapper>
-                <Bar 
-                    ref={chartRef}
-                    data={getHandlerPerformanceData()}
-                    options={{
-                        indexAxis: 'y',
-                        responsive: true,
-                        maintainAspectRatio: false, 
-                        plugins: { 
-                            legend: { display: false }, 
-                            title: { display: true, text: 'Tasks Handled by Individual Handler', font: { size: 14 } } 
-                        },
-                        scales: { 
-                            x: { grid: { display: true }, title: { display: true, text: 'Task Count' } }, 
-                            y: { grid: { display: false } } 
-                        }
-                    }}
-                />
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Bar ref={chartRef} data={updatedChartData} options={{
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: true, position: 'bottom' as const }, 
+                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                    },
+                    scales: { 
+                        x: { stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' } }, 
+                        y: { stacked: true, grid: { display: false } } 
+                    }
+                }}/>
             </ChartWrapper>
         </Card>
     );
 };
 
-const TaskDistributionChart = () => {
-  const styles = useStyles();
-  const chartRef = React.useRef<Chart<"doughnut">>(null);
-  const chartTitle = "Task Classification Distribution";
+const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate: Date; isLoading: boolean }> = ({ data, selectedDate, isLoading }) => {
+    const styles = useStyles();
+    const chartRef = React.useRef<Chart<"bar">>(null);
+    const chartTitle = "Task Volume by Zone/Region (Grouped)";
+    const handleDownload = () => downloadChartImage(chartRef, 'Zonal_Task_Volume_Chart');
+    
+    // Apply bar thickness directly to the dataset
+    const updatedDatasets = data.zonalTasks.datasets.map(dataset => ({
+        ...dataset,
+        maxBarThickness: 40, // Applied maxBarThickness
+    }));
 
-  const handleDownload = () => {
-      downloadChartImage(chartRef, 'Task_Distribution_Chart');
-  };
+    const updatedChartData = {
+        ...data.zonalTasks,
+        datasets: updatedDatasets
+    };
 
-  return (
-    <Card className={styles.chartCard}>
-      <CardHeader 
-        header={
-          <div className={styles.cardHeaderWithAction}>
-              <Title3>{chartTitle}</Title3>
-              <Button 
-                  appearance="subtle"
-                  icon={<ArrowDownloadRegular />}
-                  onClick={handleDownload}
-                  aria-label="Download Task Distribution Chart"
-                  size="small"
-              />
-          </div>
-        } 
-      />
-      <ChartWrapper>
-        <Doughnut 
-            ref={chartRef}
-            data={getTaskDistributionData()} 
-            options={{ responsive: true, maintainAspectRatio: false }} 
-        />
-      </ChartWrapper>
-    </Card>
-  );
+
+    return (
+        <Card className={styles.chartCard}>
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Bar ref={chartRef} data={updatedChartData} options={{ 
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' as const },
+                                 title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                    } 
+                }} />
+            </ChartWrapper>
+        </Card>
+    );
 };
 
-const ZonalTaskVolumeChart = () => {
-  const styles = useStyles();
-  const chartRef = React.useRef<Chart<"bar">>(null);
-  const chartTitle = "Task Volume by Zone/Region";
+const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate: Date; isLoading: boolean }> = ({ data, selectedDate, isLoading }) => {
+    const styles = useStyles();
+    const chartRef = React.useRef<Chart<"doughnut">>(null);
+    const chartTitle = "Task Classification Distribution (Prov., Maint., Other)";
+    const handleDownload = () => downloadChartImage(chartRef, `Task_Distribution_Chart_${format(selectedDate, 'yyyyMMdd')}`);
 
-  const handleDownload = () => {
-      downloadChartImage(chartRef, 'Zonal_Task_Volume_Chart');
-  };
-
-  return (
-    <Card className={styles.chartCard}>
-      <CardHeader 
-        header={
-          <div className={styles.cardHeaderWithAction}>
-              <Title3>{chartTitle}</Title3>
-              <Button 
-                  appearance="subtle"
-                  icon={<ArrowDownloadRegular />}
-                  onClick={handleDownload}
-                  aria-label="Download Zonal Task Volume Chart"
-                  size="small"
-              />
-          </div>
-        } 
-      />
-      <ChartWrapper>
-        <Bar 
-            ref={chartRef}
-            data={getZonalTaskData()} 
-            options={{ responsive: true, maintainAspectRatio: false }} 
-        />
-      </ChartWrapper>
-    </Card>
-  );
+    return (
+        <Card className={styles.chartCard}>
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Doughnut ref={chartRef} data={data.distribution} options={{ 
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' as const },
+                                 title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                    }
+                }} />
+            </ChartWrapper>
+        </Card>
+    );
 };
 
-const HistoryLineChart: React.FC = () => {
+// Define a set of distinct colors for the different bars
+const SPECIFIC_REQUEST_COLORS = [
+    'rgba(0, 120, 212, 0.8)', 
+    'rgba(0, 179, 89, 0.8)', 
+    'rgba(255, 185, 0, 0.8)', 
+    'rgba(237, 85, 18, 0.8)', 
+    'rgba(142, 63, 173, 0.8)', 
+    'rgba(0, 183, 195, 0.8)', 
+    'rgba(193, 220, 0, 0.8)', 
+    'rgba(164, 38, 44, 0.8)', 
+    'rgba(100, 100, 100, 0.8)', 
+];
+
+
+const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate: Date; isLoading: boolean; className?: string }> = ({ data, selectedDate, isLoading, className }) => {
+    const styles = useStyles();
+    const chartRef = React.useRef<Chart<"bar">>(null); 
+    const chartTitle = "Specific Request Type Distribution";
+    const handleDownload = () => downloadChartImage(chartRef, `Specific_Request_Distribution_Bar_Chart_${format(selectedDate, 'yyyyMMdd')}`);
+
+    // Memoize the chart data transformation to ensure performance
+    const chartData = React.useMemo(() => {
+        const labels = data.specificRequests.labels;
+        // Assuming the actual task counts are in the first dataset's data array
+        const rawData = data.specificRequests.datasets[0]?.data || [];
+
+        if (labels.length === 0) {
+            return { labels: [], datasets: [] };
+        }
+
+        // Generate one dataset per label/bar to get a legend item for each color (sparse data approach)
+        const datasets = labels.map((label, index) => {
+            const color = SPECIFIC_REQUEST_COLORS[index % SPECIFIC_REQUEST_COLORS.length];
+            const borderColor = color.replace('0.8', '1');
+            
+            // Create a sparse data array where only the corresponding index has the value
+            const sparseData = new Array(labels.length).fill(null);
+            sparseData[index] = rawData[index];
+
+            return {
+                label: label, 
+                data: sparseData,
+                backgroundColor: color,
+                borderColor: borderColor, 
+                borderWidth: 1,
+                maxBarThickness: 40,
+            };
+        });
+
+        return {
+            labels: labels, // X-axis labels (Request Types)
+            datasets: datasets, // Array of datasets (one per bar)
+        };
+    }, [data.specificRequests]);
+
+
+    return (
+        // Use the doubleHeightCard style
+        <Card className={mergeClasses(styles.doubleHeightCard, className)} style={{ position: 'relative' }}>
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Bar ref={chartRef} data={chartData} options={{ 
+                    indexAxis: 'x', // Vertical Bar Chart
+                    responsive: true, 
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            display: true, 
+                            position: 'bottom', 
+                            labels: { padding: 10 }
+                        },
+                        title: { display: false }, // FIX: Removed internal chart title to prevent overlap
+                        tooltip: {
+                            // Tooltip customized for sparse data
+                            callbacks: {
+                                title: (context) => context[0].label,
+                                // context.raw is null for sparse data, context.parsed.y is the value
+                                label: (context) => `${context.dataset.label}: ${context.parsed.y || 0} Tasks`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Specific Request Type', padding: 10 }, // FIX: Added padding to x-axis title
+                            stacked: true, // Makes the single bars overlay correctly
+                            ticks: { 
+                                autoSkip: false, 
+                                maxRotation: 45, 
+                                minRotation: 45 // Enforce 45-degree rotation
+                            } 
+                        }, 
+                        y: { 
+                            display: true, 
+                            title: { display: true, text: 'Number of Tasks' }, 
+                            min: 0,
+                            stacked: true, // Stacks the scale
+                        } 
+                    }
+                }} />
+            </ChartWrapper>
+        </Card>
+    );
+};
+
+
+const HistoryLineChart: React.FC<{ data: DashboardAPIResponse; isLoading: boolean }> = ({ data, isLoading }) => {
     const styles = useStyles();
     const chartRef = React.useRef<Chart<"line">>(null);
-    const chartTitle = "Historical Daily Task Volume";
-    
-    const handleDownload = () => {
-        downloadChartImage(chartRef, 'Historical_Daily_Task_Volume_Chart');
-    };
+    const chartTitle = "Historical Daily Task Volume (Last 7 Days)";
+    const handleDownload = () => downloadChartImage(chartRef, 'Historical_Daily_Task_Volume_Chart');
 
     return (
         <Card className={styles.chartCard}>
-            <CardHeader 
-                header={
-                    <div className={styles.cardHeaderWithAction}>
-                        <Title3>{chartTitle}</Title3>
-                        <Button 
-                            appearance="subtle"
-                            icon={<ArrowDownloadRegular />}
-                            onClick={handleDownload}
-                            aria-label="Download Historical Daily Task Volume Chart"
-                            size="small"
-                        />
-                    </div>
-                } 
-            />
-            <ChartWrapper>
-                <Line
-                    ref={chartRef}
-                    data={getTaskHistoryData()}
-                    options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            title: { display: true, text: 'Task Volume over Time (Last 7 Days)', font: { size: 14 } },
-                        },
-                        scales: {
-                            x: { grid: { display: false }, title: { display: true, text: 'Date' } },
-                            y: { 
-                                grid: { display: true }, 
-                                title: { display: true, text: 'Task Count' },
-                                min: 0, 
-                            },
-                        }
-                    }}
-                />
+            <CardHeader header={<div className={styles.cardHeaderWithAction}>
+                <Title3>{chartTitle}</Title3>
+                <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
+            </div>} />
+            <ChartWrapper isLoading={isLoading}>
+                <Line ref={chartRef} data={data.taskHistory} options={{
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, title: { display: false } }, // FIX: Removed internal chart title to prevent overlap
+                    scales: {
+                        x: { grid: { display: false }, title: { display: true, text: 'Date' } },
+                        y: { grid: { display: true }, title: { display: true, text: 'Task Count' }, min: 0 },
+                    }
+                }}/>
             </ChartWrapper>
         </Card>
     );
 };
 
 // =======================================================
-// Main Component
+// Main Component: DashboardCharts 
 // =======================================================
 
+const DEFAULT_DATE = subDays(new Date(), 1); 
+
 export const DashboardCharts: React.FC = () => {
-  const styles = useStyles();
-  const buttonId = useId("date-range-button");
+    const styles = useStyles();
+    
+    const [numWeeks, setNumWeeks] = React.useState(2); 
+    const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(DEFAULT_DATE);
+    const currentFilterDate = selectedDate || DEFAULT_DATE;
 
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [range, setRange] = React.useState<Range[]>([
-    { startDate: new Date(new Date().setDate(new Date().getDate() - 7)), endDate: new Date(), key: "selection" },
-  ]);
+    // Destructure separate loading flags: isTrendLoading and isDateLoading
+    const { 
+        data, 
+        isTrendLoading, 
+        isDateLoading, 
+        error 
+    } = useDashboardData(currentFilterDate, numWeeks); 
 
-  const handleRangeChange = (ranges: { [key: string]: Range }) => {
-    setRange([ranges.selection]);
-  };
-
-  const formattedDateRange = `${format(range[0].startDate!, "MMM dd, yyyy")} - ${format(
-    range[0].endDate!,
-    "MMM dd, yyyy"
-  )}`;
-
-  // Disable scroll when popup open
-  React.useEffect(() => {
-    document.body.style.overflow = isOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
+    const handleDateChange = (date: Date | null | undefined) => {
+        setSelectedDate(date === null ? undefined : date);
     };
-  }, [isOpen]);
-
-  // Close popup when clicking escape key
-  React.useEffect(() => {
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsOpen(false);
-      }
+    
+    const handleResetDate = () => {
+        setSelectedDate(DEFAULT_DATE);
     };
 
-    if (isOpen) {
-      document.addEventListener('keydown', handleEscape);
-      return () => {
-        document.removeEventListener('keydown', handleEscape);
-      };
+    if (error) {
+        return (
+            <div style={{ padding: "20px", color: tokens.colorPaletteRedForeground1 }}>
+                <Title3>🚨 Data Fetch Error</Title3>
+                <Text>{error}</Text>
+                <Button onClick={() => window.location.reload()} style={{ marginTop: '10px' }}>Reload Dashboard</Button>
+            </div>
+        );
     }
-  }, [isOpen]);
+    
+    const { weeklyTrend } = data;
 
-  return (
-    <div style={{ padding: "0px" }}>
-      {/* ✅ Date Range Button */}
-      <div className={styles.dateRangeContainer}>
-        <Button
-          id={buttonId}
-          appearance="subtle"
-          icon={<CalendarMonthRegular />}
-          className={styles.dateButton}
-          onClick={() => setIsOpen(true)}
-        >
-          Date Range: {formattedDateRange}
-        </Button>
-      </div>
+    return (
+        <div style={{ padding: "20px" }}>
+            
+            {/* Enterprise Control Bar */}
+            <div className={styles.controlBar}>
+                <div className={styles.controlGroup}>
+                    
+                    {/* Calendar/Date Picker Implementation */}
+                    <div className={styles.dateControl}>
+                        <Field label="Filter Date" style={{minWidth: '200px'}}>
+                            <DatePicker
+                                value={currentFilterDate}
+                                onSelectDate={handleDateChange} 
+                                placeholder="Select a date..."
+                                formatDate={(date: Date | undefined): string => {
+                                    return date ? format(date, 'MMM dd, yyyy') : '';
+                                }}
+                            />
+                        </Field>
+                        <Button appearance="subtle" size="medium" icon={<CalendarMonthRegular />}
+                            onClick={handleResetDate} className={styles.resetButton} aria-label="Reset Date to Default"
+                        >
+                            Reset
+                        </Button>
+                    </div>
 
-      {/* ✅ Responsive Popup */}
-      {isOpen && (
-        <>
-          <div className={styles.overlay} onClick={() => setIsOpen(false)} />
-          <div className={`${styles.centeredPopup} ${styles.cleanCalendar}`}>
-            <div className={styles.calendarContainer}>
-              <DateRangePicker
-                ranges={range}
-                onChange={handleRangeChange}
-                moveRangeOnFirstSelection={false}
-                months={2}
-                direction="horizontal"
-                showSelectionPreview
-                rangeColors={[tokens.colorBrandBackground]}
-                // Responsive props
-                monthDisplayFormat="MMMM yyyy"
-                weekdayDisplayFormat="EEEEEE" // Short weekday names
-              />
+                    <Divider vertical />
+
+                    {/* Comparison Week Slider */}
+                    <div className={styles.sliderContainer}>
+                        <Label htmlFor="num-weeks-slider">Weekly Trend Analysis (Weeks)</Label>
+                        <Slider
+                            id="num-weeks-slider"
+                            min={2} max={6} step={1} value={numWeeks}
+                            onChange={(e, data) => setNumWeeks(data.value)}
+                            aria-valuetext={`${numWeeks} Weeks`}
+                        />
+                        <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2 }}>
+                            Viewing **{numWeeks}** weeks of data for comparison.
+                        </div>
+                    </div>
+
+                    <Divider vertical />
+
+                    {/* Settings/Configuration Button (Placeholder) */}
+                    <Button appearance="subtle" icon={<SettingsRegular />} aria-label="Dashboard Settings">
+                        Settings
+                    </Button>
+                </div>
             </div>
-            <div className={styles.applyButtonContainer}>
-              <Button 
-                appearance="primary" 
-                onClick={() => setIsOpen(false)}
-                className={styles.closeButton}
-              >
-                Apply
-              </Button>
+            
+            
+            {/* KPI Section - Uses isTrendLoading */}
+            <Title3 className={styles.sectionTitle}>Current Week Summary & Comparison</Title3>
+            <div className={styles.kpiGrid}>
+                <KpiCard taskType="Provisioning" chartData={weeklyTrend.Provisioning} numWeeks={numWeeks} isLoading={isTrendLoading} />
+                <KpiCard taskType="Maintenance" chartData={weeklyTrend.Maintenance} numWeeks={numWeeks} isLoading={isTrendLoading} />
+                <KpiCard taskType="Others" chartData={weeklyTrend.Others} numWeeks={numWeeks} isLoading={isTrendLoading} />
             </div>
-          </div>
-        </>
-      )}
 
-      {/* ✅ Charts Grid */}
-      <div className={styles.chartGrid}>
-        <HistoryLineChart />
-        <HandlerPerformanceChart />
-        <TaskDistributionChart />
-        <ZonalTaskVolumeChart />
-      </div>
-    </div>
-  );
+            <Divider />
+        
+            {/* Detailed Trend Comparison Section - Uses isTrendLoading */}
+            <Title3 className={styles.sectionTitle}>Detailed Weekly Trend Charts (Last {numWeeks} Weeks)</Title3>
+            <div className={styles.chartGrid}>
+                <TaskComparisonChartCard 
+                    taskType="Provisioning" chartData={weeklyTrend.Provisioning} numWeeks={numWeeks} isLoading={isTrendLoading}
+                />
+                <TaskComparisonChartCard 
+                    taskType="Maintenance" chartData={weeklyTrend.Maintenance} numWeeks={numWeeks} isLoading={isTrendLoading}
+                />
+                <TaskComparisonChartCard 
+                    taskType="Others" chartData={weeklyTrend.Others} numWeeks={numWeeks} isLoading={isTrendLoading}
+                />
+                <HistoryLineChart data={data} isLoading={isTrendLoading} />
+            </div>
+
+            <Divider />
+
+            {/* General Performance and Distribution Section (Date Dependent) - Uses isDateLoading */}
+            <Title3 className={styles.sectionTitle}>
+                Performance and Distribution **(Date Dependent: {format(currentFilterDate, 'MMM dd, yyyy')})**
+            </Title3>
+            <div className={styles.chartGrid}>
+                {/* 1st row: 2 standard height cards */}
+                <HandlerPerformanceChart data={data} selectedDate={currentFilterDate} isLoading={isDateLoading} /> 
+                <ZonalTaskVolumeChart data={data} selectedDate={currentFilterDate} isLoading={isDateLoading} /> 
+                
+                {/* 2nd row: 1 standard card + 1 double height card */}
+                <TaskDistributionChart data={data} selectedDate={currentFilterDate} isLoading={isDateLoading} />
+                <SpecificRequestTypeDistributionChart 
+                    data={data} 
+                    selectedDate={currentFilterDate} 
+                    isLoading={isDateLoading} 
+                    className={styles.doubleHeightCard} 
+                /> 
+            </div>
+        </div>
+    );
 };

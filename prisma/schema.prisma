@@ -1,0 +1,139 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "./zod"
+}
+
+// --------------------------------------------------------------------
+// MODELS
+// --------------------------------------------------------------------
+
+model User {
+  id               String          @id @default(cuid())
+  name             String?
+  email            String          @unique
+  password         String
+  image            String?
+  role             Role            @default(user)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  createdTickets TroubleTicket[] @relation("CreatedTickets")
+  handledTickets TroubleTicket[] @relation("HandledTickets")
+}
+
+model TroubleTicket {
+  id                    String                @id @default(cuid())
+
+  serviceNumber         String
+  tasksClassification   TaskClassification
+  requestType           RequestType
+  specificRequestType   SpecificRequestType
+  zone                  Zone
+  remarks               String
+  priority              Priority
+  status                TicketStatus          @default(Pending)
+
+  pending_endAt         DateTime?
+  resolvedAt            DateTime?
+
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  createdById           String?
+  createdBy             User?                 @relation("CreatedTickets", fields: [createdById], references: [id])
+
+  handlerId             String?
+  handler               User?                 @relation("HandledTickets", fields: [handlerId], references: [id])
+}
+
+// --------------------------------------------------------------------
+// ENUMS
+// --------------------------------------------------------------------
+
+enum Role {
+  manager
+  supervisor
+  user
+}
+
+enum TaskClassification {
+  Provisioning
+  Maintenance
+  Others
+}
+
+enum RequestType {
+  Email
+  Phone
+  SMS_order
+  TT
+  Manual_order
+}
+
+enum Zone {
+  EAAZ
+  CAAZ
+  SAAZ
+  NAAZ
+  SWAAZ
+  WAAZ
+  NR_Mekele
+  NWR_Bahirdar
+  ER_Dire_Dawa
+  CER_Harar
+  CNR_D_Birhan
+  WR_Nekempt
+  SER_Adama
+  SR_Hawassa
+  SWR_Jimma
+  CWR_Ambo
+  EER_Jigiiga
+  NEER_Semera
+  NNWR_Gonder
+  NER_Dessie
+  SWWR_Gambela
+  WWR_Assosa
+  SSWR_Wolyta
+  Bill_Section
+  Enterprise_office
+}
+
+// FIX: This single enum definition replaces the two duplicate definitions above.
+// It uses the cleaner PascalCase names, which are mapped to descriptions 
+// in your frontend utility file (specificRequestTypeMap.ts).
+enum SpecificRequestType {
+  CentrexGroupHuntingPBX
+  IMSSIPGPONComboService
+  ISDNE1ActivationDeactivation
+  ISDNE1VoiceService
+  ISDNDMigrationOrLineShifting
+  OnlineSupportPSTNMigrationTroubleshoot
+  OtherDataManagementTasks
+  ProductChangeH248ISDNToSIP
+  ShortCode3Or4DigitConfiguration
+  ShortNumberTermination
+  GeneralTroubleTicket
+}
+
+enum Priority {
+  High
+  Medium
+  Low
+}
+
+enum TicketStatus {
+  Pending
+  In_Progress
+  Resolved
+}

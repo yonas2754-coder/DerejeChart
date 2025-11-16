@@ -1,5 +1,4 @@
-// components/TTFormV9.tsx
-'use client'; 
+'use client';
 
 import * as React from 'react';
 import {
@@ -20,277 +19,305 @@ import {
   Spinner,
 } from '@fluentui/react-components';
 
-// --- CONFIGURATION DATA (i18n ready) ---
-const classificationOptions = ['Provisioning', 'Maintenance', 'Others'];
-const requestTypeOptions = ['Email', 'Phone', 'SMS order', 'Manual order'];
-const zoneOptions = ['CAAZ', 'SAAZ', 'NAAZ', 'EAAZ', 'Enterprise office', 'WAAZ', 'SWAAZ', 'NR- Mekele', 'NEER - Semera', 'CNR - D. Birhan', 'SER - Adama', 'SR - Hawassa', 'WR - Nekempt', 'ER - Dire Dawa'];
-const handlerOptions = ['Alegntaye', 'Yehualaeshet', 'semanu', 'Ermias', 'Abdulhafiz'];
-const specificRequestOptions = [
-    'Centrex group configuration(Hunting as PBX) (01)',
-    'IMS SIP, GPON Combo service configuration (02)',
-    'Online Support PSTN Migration, Incoming and Outgoing call solution, Caller Id Display, Routing for O&M, Enterprise & Others Stakeholders (06)',
-    'Other tasks (Data collection, data checking, hundred group configuration, and routing, caller ID display, additional E1 No of range configuration) (07)',
-    'Short code 3 and 4 Digits configuration for Fixed Number, ISDN SIP service and SMS orders closed (09)'
-];
-const priorityOptions = ['High', 'Medium', 'Low']; 
+// --- TanStack Query hooks ---
+import { useHandlers } from '@/hooks/useHandlers';
+import { useCreateTicket } from '@/hooks/useCreateTicket';
 
+// --- Zod schema imports ---
+import { TaskClassificationSchema } from '~/prisma/zod/schemas/enums/TaskClassification.schema';
+import { RequestTypeSchema } from '~/prisma/zod/schemas/enums/RequestType.schema';
+import { PrioritySchema } from '~/prisma/zod/schemas/enums/Priority.schema';
+import { ZoneSchema } from '~/prisma/zod/schemas/enums/Zone.schema';
+import { SpecificRequestTypeSchema } from '~/prisma/zod/schemas/enums/SpecificRequestType.schema';
 
-// --- STYLING (Professional Responsive Grid & Typography) ---
+// ====================================================================
+// --- NEW IMPORT: Use the external utility file ---
+import { mappedSpecificRequestOptions } from '@/utils/specificRequestTypeMap';
+// ====================================================================
+
+// --- Enum Options ---
+const classificationOptions = TaskClassificationSchema.options;
+const requestTypeOptions = RequestTypeSchema.options;
+const priorityOptions = PrioritySchema.options;
+const zoneOptions = ZoneSchema.options;
+const specificRequestOptions = SpecificRequestTypeSchema.options; // Keep for initial state
+
+// --- Styling ---
 const useStyles = makeStyles({
   container: {
-    ...shorthands.padding(tokens.spacingVerticalXXL, tokens.spacingHorizontalXXL, tokens.spacingVerticalM, tokens.spacingHorizontalXXL),
-    maxWidth: '1200px', 
+    ...shorthands.padding(
+      tokens.spacingVerticalXXL,
+      tokens.spacingHorizontalXXL,
+      tokens.spacingVerticalM,
+      tokens.spacingHorizontalXXL
+    ),
+    maxWidth: '1200px',
     margin: '0 auto',
     display: 'flex',
     flexDirection: 'column',
     ...shorthands.gap('28px'),
-
     '@media (max-width: 768px)': {
-        ...shorthands.padding(tokens.spacingVerticalXL, tokens.spacingHorizontalL, tokens.spacingVerticalM, tokens.spacingHorizontalL),
+      ...shorthands.padding(
+        tokens.spacingVerticalXL,
+        tokens.spacingHorizontalL,
+        tokens.spacingVerticalM,
+        tokens.spacingHorizontalL
+      ),
     },
   },
   title: {
-    borderBottom: `2px solid ${tokens.colorBrandBackground}`, 
-    paddingBottom: '8px', 
+    borderBottom: `2px solid ${tokens.colorBrandBackground}`,
+    paddingBottom: '8px',
     marginBottom: '4px',
-    // PROFESSIONAL TYPOGRAPHY: Ensure title is large and bold
     fontWeight: tokens.fontWeightSemibold,
-    fontSize: tokens.fontSizeHero700, 
+    fontSize: tokens.fontSizeHero700,
   },
-  
   formLayout: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)', // Desktop
-    ...shorthands.gap('24px'), 
-    
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    ...shorthands.gap('24px'),
     '@media (max-width: 1200px)': {
-        gridTemplateColumns: 'repeat(2, 1fr)', // Tablet
-        ...shorthands.gap('20px'),
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      ...shorthands.gap('20px'),
     },
-    
     '@media (max-width: 768px)': {
-        gridTemplateColumns: '1fr', // Mobile
-        ...shorthands.gap('16px'),
+      gridTemplateColumns: '1fr',
+      ...shorthands.gap('16px'),
     },
   },
-  
   fullWidth: {
     gridColumnStart: 1,
     gridColumnEnd: 4,
-    '@media (max-width: 1200px)': {
-        gridColumnEnd: 3, 
-    },
-    '@media (max-width: 768px)': {
-        gridColumnEnd: 2, 
-    },
+    '@media (max-width: 1200px)': { gridColumnEnd: 3 },
+    '@media (max-width: 768px)': { gridColumnEnd: 2 },
   },
-
   submitButton: {
     marginTop: '10px',
     width: 'fit-content',
-    // PROFESSIONAL TYPOGRAPHY: Ensure button text is clearly legible
-    fontWeight: tokens.fontWeightSemibold, 
-    // Mobile optimization: Make button full width
-    '@media (max-width: 768px)': {
-        width: '100%',
-    },
-  }
+    fontWeight: tokens.fontWeightSemibold,
+    '@media (max-width: 768px)': { width: '100%' },
+  },
 });
 
-// --- FORM STATE & LOGIC ---
-interface ITicketState {
+// --- Types ---
+interface Handler {
+  id: string;
+  name: string;
+}
+
+interface TicketState {
   serviceNumber: string;
   tasksClassification: string;
   requestType: string;
   specificRequestType: string;
   zone: string;
-  handler: string;
+  handlerId: string;
   remarks: string;
   priority: string;
 }
 
+// --- Component ---
 const TTForm: React.FC = () => {
   const styles = useStyles();
-  
-  const resetTicket = React.useCallback(() => ({
-    serviceNumber: '', tasksClassification: '', requestType: 'Email', specificRequestType: '', 
-    zone: '', handler: '', remarks: '', priority: 'Medium' 
-  }), []);
-  
-  const [ticket, setTicket] = React.useState<ITicketState>(resetTicket);
-  const [isLoading, setIsLoading] = React.useState(false);
-  
   const serviceNumberId = useId('serviceNumber-input');
 
-  const handleChange = (field: keyof ITicketState, value: string): void => {
+  // --- TanStack Query hooks ---
+  const { data: handlers, isLoading: isLoadingHandlers } = useHandlers(); // Already typed inside hook
+  const createTicket = useCreateTicket();
+
+  // --- Form state ---
+  const [ticket, setTicket] = React.useState<TicketState>({
+    serviceNumber: '',
+    tasksClassification: classificationOptions[0],
+    requestType: requestTypeOptions[0],
+    specificRequestType: specificRequestOptions[0],
+    zone: zoneOptions[0],
+    handlerId: '',
+    remarks: '',
+    priority: priorityOptions[1], // Medium
+  });
+
+  // --- Set first handler by default ---
+  React.useEffect(() => {
+    if (handlers && handlers.length > 0 && !ticket.handlerId) {
+      setTicket(prev => ({ ...prev, handlerId: handlers[0].id }));
+    }
+  }, [handlers, ticket.handlerId]);
+
+  const handleChange = (field: keyof TicketState, value: string) =>
     setTicket(prev => ({ ...prev, [field]: value }));
-  };
 
-  const handleDropdownSelect = (field: keyof ITicketState, option: string | undefined): void => {
-    handleChange(field, option || '');
-  };
-
-  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-    
-    console.log('Submitting Trouble Ticket (V9):', ticket);
-    await new Promise(resolve => setTimeout(resolve, 1500)); 
-    
-    setIsLoading(false);
-    alert('Trouble Ticket Submitted Successfully!');
-    setTicket(resetTicket());
+    createTicket.mutate(ticket, {
+      onSuccess: () => {
+        alert('✅ Trouble Ticket Submitted Successfully!');
+        setTicket({
+          serviceNumber: '',
+          tasksClassification: classificationOptions[0],
+          requestType: requestTypeOptions[0],
+          specificRequestType: specificRequestOptions[0],
+          zone: zoneOptions[0],
+          handlerId: handlers?.[0]?.id || '',
+          remarks: '',
+          priority: priorityOptions[1],
+        });
+      },
+      onError: (error: any) => {
+        alert(`❌ ${error.message}`);
+      },
+    });
   };
 
-  const isFormInvalid = (
-      !ticket.serviceNumber || 
-      !ticket.tasksClassification || 
-      !ticket.specificRequestType || 
-      !ticket.zone || 
-      !ticket.handler ||
-      !ticket.remarks
-  );
+  const isFormInvalid =
+    !ticket.serviceNumber ||
+    !ticket.tasksClassification ||
+    !ticket.specificRequestType ||
+    !ticket.zone ||
+    !ticket.handlerId ||
+    !ticket.remarks;
+
+  // Get the display label for the currently selected LONG Prisma value
+  const currentSpecificRequestLabel = React.useMemo(() => {
+    const selectedOption = mappedSpecificRequestOptions.find(opt => opt.value === ticket.specificRequestType);
+    return selectedOption?.label || ticket.specificRequestType;
+  }, [ticket.specificRequestType]);
 
   return (
     <div className={styles.container}>
-      <Title2 className={styles.title}>
-        Ethio telecom Trouble Ticket Creation
-      </Title2>
-      <Label size="large" weight="semibold"> {/* Use semibold weight for instructions */}
+      <Title2 className={styles.title}>FSASS Section Ticket Creation</Title2>
+      <Label size="large" weight="semibold">
         Mandatory fields are marked with an asterisk (*). Please ensure accuracy for efficient task handling.
       </Label>
 
       <form onSubmit={handleSubmit}>
         <div className={styles.formLayout}>
-          
-          {/* Service Number (Input) */}
-          <Field 
-            label="Service Number *" 
+          {/* Service Number */}
+          <Field
+            label="Service Number *"
             required
-            validationMessage={!ticket.serviceNumber && !isLoading ? 'Service Number is required.' : undefined}
+            validationMessage={!ticket.serviceNumber && !createTicket.isPending ? 'Service Number is required.' : undefined}
           >
             <Input
               id={serviceNumberId}
-              placeholder="e.g., 2519xxxxxx or E1 No"
+              placeholder="e.g., 2519xxxxxx "
               value={ticket.serviceNumber}
-              onChange={(e) => handleChange('serviceNumber', e.target.value)}
-              disabled={isLoading}
+              onChange={e => handleChange('serviceNumber', e.target.value)}
+              disabled={createTicket.isPending}
             />
           </Field>
-          
-          {/* Handler / Assigned Agent (Dropdown) */}
-          <Field 
-            label="Handler / Assigned Agent *" 
-            required
-          >
+
+          {/* Handler */}
+          <Field label="Handler / Assigned Agent *" required>
             <Dropdown
               placeholder="Select Handling Agent"
-              selectedOptions={[ticket.handler]}
-              onOptionSelect={(e, data) => handleDropdownSelect('handler', data.optionText)}
-              disabled={isLoading}
+              selectedOptions={handlers?.filter(h => h.id === ticket.handlerId).map(h => h.name) || []}
+              onOptionSelect={(_, data) => handleChange('handlerId', data.optionValue as string)}
+              disabled={isLoadingHandlers || createTicket.isPending}
             >
-              {handlerOptions.map((option) => (
-                <Option key={option} value={option}>{option}</Option>
+              {handlers?.map((handler: Handler) => (
+                <Option key={handler.id} value={handler.id}>
+                  {handler.name}
+                </Option>
               ))}
             </Dropdown>
           </Field>
 
-          {/* Priority (Active RadioGroup) */}
-          <Field 
-            label="Priority *"
-            required
-          >
-             <RadioGroup
-                layout="horizontal"
-                value={ticket.priority}
-                onChange={(_, data) => handleChange('priority', data.value)}
-                disabled={isLoading}
-             >
-                {priorityOptions.map((level) => (
-                    <Radio key={level} value={level} label={level} />
-                ))}
+          {/* Priority */}
+          <Field label="Priority *" required>
+            <RadioGroup
+              layout="horizontal"
+              value={ticket.priority}
+              onChange={(_, data) => handleChange('priority', data.value)}
+              disabled={createTicket.isPending}
+            >
+              {priorityOptions.map(level => (
+                <Radio key={level} value={level} label={level} />
+              ))}
             </RadioGroup>
           </Field>
 
-
-          {/* Task Classification (Dropdown) */}
-          <Field 
-            label="Task Classification *" 
-            required
-          >
+          {/* Task Classification */}
+          <Field label="Task Classification *" required>
             <Dropdown
               placeholder="Select Task Category"
               selectedOptions={[ticket.tasksClassification]}
-              onOptionSelect={(e, data) => handleDropdownSelect('tasksClassification', data.optionText)}
-              disabled={isLoading}
+              onOptionSelect={(_, data) => handleChange('tasksClassification', data.optionText || '')}
+              disabled={createTicket.isPending}
             >
-              {classificationOptions.map((option) => (
-                <Option key={option} value={option}>{option}</Option>
+              {classificationOptions.map(option => (
+                <Option key={option} value={option}>
+                  {option}
+                </Option>
               ))}
             </Dropdown>
           </Field>
-          
-          {/* Zone/Region (Dropdown) */}
-          <Field 
-            label="Zone/Region *" 
-            required
-          >
+
+          {/* Zone */}
+          <Field label="Zone/Region *" required>
             <Dropdown
               placeholder="Select Zone or Region"
               selectedOptions={[ticket.zone]}
-              onOptionSelect={(e, data) => handleDropdownSelect('zone', data.optionText)}
-              disabled={isLoading}
-              aria-expanded
+              onOptionSelect={(_, data) => handleChange('zone', data.optionText || '')}
+              disabled={createTicket.isPending}
             >
-              {zoneOptions.map((option) => (
-                <Option key={option} value={option}>{option}</Option>
+              {zoneOptions.map(option => (
+                <Option key={option} value={option}>
+                  {option}
+                </Option>
               ))}
             </Dropdown>
           </Field>
 
-          {/* Request Source (RadioGroup) */}
-          <Field 
-            label="Request Source/Type *" 
-            required
-          >
-             <RadioGroup
-                layout="horizontal"
-                value={ticket.requestType}
-                onChange={(_, data) => handleChange('requestType', data.value)}
-                disabled={isLoading}
-             >
-                {requestTypeOptions.map((type) => (
-                    <Radio key={type} value={type} label={type} />
-                ))}
+          {/* Request Type */}
+          <Field label="Request Source/Type *" required>
+            <RadioGroup
+              layout="horizontal"
+              value={ticket.requestType}
+              onChange={(_, data) => handleChange('requestType', data.value)}
+              disabled={createTicket.isPending}
+            >
+              {requestTypeOptions.map(type => (
+                <Radio key={type} value={type} label={type} />
+              ))}
             </RadioGroup>
           </Field>
-          
 
-          {/* Specific Request Type (Full Width on all resolutions) */}
-          <Field 
-            className={styles.fullWidth} 
-            label="Specific Request Type *" 
-            required 
+          {/* Specific Request - MODIFIED DROPDOWN to use external map */}
+          <Field
+            className={styles.fullWidth}
+            label="Specific Request Type *"
+            required
             hint="Select the specific code matching the required task."
           >
             <Dropdown
-              placeholder="Select Specific Request Type and Code"
-              selectedOptions={[ticket.specificRequestType]}
-              onOptionSelect={(e, data) => handleDropdownSelect('specificRequestType', data.optionText)}
-              disabled={isLoading}
-              aria-expanded
+              placeholder={currentSpecificRequestLabel}
+              // Set selectedOptions to the calculated label for correct display
+              selectedOptions={[currentSpecificRequestLabel]}
+              // IMPORTANT: onOptionSelect must use data.optionValue, which is the long Prisma value
+              onOptionSelect={(_, data) => handleChange('specificRequestType', data.optionValue as string)}
+              disabled={createTicket.isPending}
             >
-              {specificRequestOptions.map((option) => (
-                <Option key={option} value={option}>{option}</Option>
+              {/* Use the mapped array from the utility file */}
+             {mappedSpecificRequestOptions.map(option => (
+    <Option 
+        key={option.value} 
+        value={option.value} // The actual value submitted (LONG Prisma enum)
+        title={option.description} // Full description for hover
+        // FIX: Add the required 'text' prop for Fluent UI Dropdown functionality
+        text={option.label}
+    >
+      {option.description} {/* The user-friendly display text */}
+    </Option>
               ))}
             </Dropdown>
           </Field>
 
-          {/* Remarks/Details (Full Width on all resolutions) */}
-          <Field 
-            className={styles.fullWidth} 
-            label="Detailed Request Description / Remarks *" 
-            required 
+          {/* Remarks */}
+          <Field
+            className={styles.fullWidth}
+            label="Detailed Request Description / Remarks *"
+            required
             hint="Provide context, required actions, and any customer contact information."
           >
             <Textarea
@@ -298,23 +325,24 @@ const TTForm: React.FC = () => {
               rows={5}
               placeholder="Start typing the details here..."
               value={ticket.remarks}
-              onChange={(e) => handleChange('remarks', e.target.value)}
-              disabled={isLoading}
+              onChange={e => handleChange('remarks', e.target.value)}
+              disabled={createTicket.isPending}
             />
           </Field>
-
         </div>
-        
-        {/* Submit Button with Loading State */}
-        <Button 
+
+        {/* Submit Button */}
+        <Button
           className={styles.submitButton}
-          type="submit" 
-          appearance="primary" 
+          type="submit"
+          appearance="primary"
           size="large"
-          disabled={isLoading || isFormInvalid}
+          disabled={createTicket.isPending || isFormInvalid}
         >
-          {isLoading ? (
-            <><Spinner size="tiny" /> Creating Ticket...</>
+          {createTicket.isPending ? (
+            <>
+              <Spinner size="tiny" /> Creating Ticket...
+            </>
           ) : (
             'Create Trouble Ticket'
           )}

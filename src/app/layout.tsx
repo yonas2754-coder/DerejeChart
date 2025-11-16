@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "../componets/providers";
 import "./globals.css";
 import TTAppLayout from "@/componets/TTAppLayout";
+import { SessionProvider } from "@/componets/SessionProvider";
+import TTLayoutWrapper from "@/componets/TTLayoutWrapper";
+import QueryProvider from "@/componets/QueryProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,10 +33,15 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             suppressHydrationWarning={true}
       >
+         <QueryProvider>  
+        <SessionProvider>
         <Providers>
-          <TTAppLayout />
+     
         {children}
+    
          </Providers>
+         </SessionProvider>
+         </QueryProvider>
       </body>
     </html>
   );

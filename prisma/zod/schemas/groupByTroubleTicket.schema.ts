@@ -1,0 +1,13 @@
+import type { Prisma } from '@prisma/client';
+import * as z from 'zod';
+import { TroubleTicketWhereInputObjectSchema as TroubleTicketWhereInputObjectSchema } from './objects/TroubleTicketWhereInput.schema';
+import { TroubleTicketOrderByWithAggregationInputObjectSchema as TroubleTicketOrderByWithAggregationInputObjectSchema } from './objects/TroubleTicketOrderByWithAggregationInput.schema';
+import { TroubleTicketScalarWhereWithAggregatesInputObjectSchema as TroubleTicketScalarWhereWithAggregatesInputObjectSchema } from './objects/TroubleTicketScalarWhereWithAggregatesInput.schema';
+import { TroubleTicketScalarFieldEnumSchema } from './enums/TroubleTicketScalarFieldEnum.schema';
+import { TroubleTicketCountAggregateInputObjectSchema as TroubleTicketCountAggregateInputObjectSchema } from './objects/TroubleTicketCountAggregateInput.schema';
+import { TroubleTicketMinAggregateInputObjectSchema as TroubleTicketMinAggregateInputObjectSchema } from './objects/TroubleTicketMinAggregateInput.schema';
+import { TroubleTicketMaxAggregateInputObjectSchema as TroubleTicketMaxAggregateInputObjectSchema } from './objects/TroubleTicketMaxAggregateInput.schema';
+
+export const TroubleTicketGroupBySchema: z.ZodType<Prisma.TroubleTicketGroupByArgs> = z.object({ where: TroubleTicketWhereInputObjectSchema.optional(), orderBy: z.union([TroubleTicketOrderByWithAggregationInputObjectSchema, TroubleTicketOrderByWithAggregationInputObjectSchema.array()]).optional(), having: TroubleTicketScalarWhereWithAggregatesInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), by: z.array(TroubleTicketScalarFieldEnumSchema), _count: z.union([ z.literal(true), TroubleTicketCountAggregateInputObjectSchema ]).optional(), _min: TroubleTicketMinAggregateInputObjectSchema.optional(), _max: TroubleTicketMaxAggregateInputObjectSchema.optional() }).strict() as unknown as z.ZodType<Prisma.TroubleTicketGroupByArgs>;
+
+export const TroubleTicketGroupByZodSchema = z.object({ where: TroubleTicketWhereInputObjectSchema.optional(), orderBy: z.union([TroubleTicketOrderByWithAggregationInputObjectSchema, TroubleTicketOrderByWithAggregationInputObjectSchema.array()]).optional(), having: TroubleTicketScalarWhereWithAggregatesInputObjectSchema.optional(), take: z.number().optional(), skip: z.number().optional(), by: z.array(TroubleTicketScalarFieldEnumSchema), _count: z.union([ z.literal(true), TroubleTicketCountAggregateInputObjectSchema ]).optional(), _min: TroubleTicketMinAggregateInputObjectSchema.optional(), _max: TroubleTicketMaxAggregateInputObjectSchema.optional() }).strict();

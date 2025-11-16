@@ -1,0 +1,35 @@
+// app/loading.tsx
+import * as React from 'react';
+import { Spinner, makeStyles, tokens, Title2 } from '@fluentui/react-components';
+
+// This component uses Fluent UI styles, so it's a Client Component.
+// If you only used plain HTML/CSS, you could omit "use client".
+
+const useStyles = makeStyles({
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: '100vh',
+    backgroundColor: tokens.colorNeutralBackground1,
+    padding: tokens.spacingHorizontalXXL,
+    gap: tokens.spacingVerticalL,
+  },
+});
+
+/**
+ * Global Loading UI for Next.js App Router.
+ * This will be shown while a route segment is loading data.
+ */
+export default function Loading(): React.ReactElement {
+  const styles = useStyles();
+
+  return (
+    <div className={styles.container}>
+      {/* Fluent UI Spinner */}
+      <Spinner size="huge" label="Loading content..." />
+      <Title2>Preparing ...</Title2>
+    </div>
+  );
+}
