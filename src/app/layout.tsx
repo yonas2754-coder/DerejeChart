@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "../componets/providers";
 import "./globals.css";
-import TTAppLayout from "@/componets/TTAppLayout";
+
 import { SessionProvider } from "@/componets/SessionProvider";
-import TTLayoutWrapper from "@/componets/TTLayoutWrapper";
+
 import QueryProvider from "@/componets/QueryProvider";
 
 const geistSans = Geist({

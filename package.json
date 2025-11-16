@@ -7,9 +7,8 @@
     "migrate:reset": "dotenv -e .env.local -- npx prisma migrate reset",
     "prisma:generate": "dotenv -e .env.local -- npx prisma generate",
     "prisma:studio": "dotenv -e .env.local -- npx prisma studio",
-    
     "postinstall": "prisma generate",
-    "vercel-build": "npm run postinstall && prisma migrate deploy && next build", 
+    "vercel-build": "npm run postinstall && prisma migrate deploy && next build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -34,6 +33,7 @@
     "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^4.1.0",
     "file-saver": "^2.0.5",
+    "geist": "^1.5.1",
     "next": "^16.0.1",
     "next-auth": "^4.24.13",
     "pg": "^8.16.3",

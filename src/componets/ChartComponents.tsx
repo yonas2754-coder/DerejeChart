@@ -8,11 +8,11 @@ import {
     Field, Spinner,
 } from "@fluentui/react-components";
 import { DatePicker } from "@fluentui/react-datepicker-compat"; 
-import { Bar, Doughnut, Line } from "react-chartjs-2"; 
+import { Bar, Doughnut, Line, ChartProps } from "react-chartjs-2"; // Added ChartProps for completeness
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, 
     BarElement, Title, Tooltip, Legend, ArcElement, 
-    PointElement, LineElement, Chart, ChartOptions
+    PointElement, LineElement, Chart, ChartOptions, ChartData, ChartDataset 
 } from "chart.js";
 import ChartDataLabels from 'chartjs-plugin-datalabels';
 import { format, subDays } from "date-fns";
@@ -386,7 +386,7 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
                 <Bar ref={chartRef} data={updatedChartData} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                 title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     } 
                 }} />
             </ChartWrapper>
@@ -410,7 +410,7 @@ const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate
                 <Doughnut ref={chartRef} data={data.distribution} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                 title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     }
                 }} />
             </ChartWrapper>
@@ -439,27 +439,32 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
     const handleDownload = () => downloadChartImage(chartRef, `Specific_Request_Distribution_Bar_Chart_${format(selectedDate, 'yyyyMMdd')}`);
 
     // Memoize the chart data transformation to ensure performance
-    const chartData = React.useMemo(() => {
-        const labels = data.specificRequests.labels;
-        // Assuming the actual task counts are in the first dataset's data array
-        const rawData = data.specificRequests.datasets[0]?.data || [];
+    const chartData: ChartData<"bar", number[], string> = React.useMemo(() => {
+        
+        // FIX: Safely access labels and cast them to string[]
+        const labels: string[] = (data.specificRequests?.labels as string[] | undefined) || []; 
+        
+        // FIX: Safely access rawData and cast them to number[]
+        const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
 
         if (labels.length === 0) {
+            // Must return the fully typed empty structure
             return { labels: [], datasets: [] };
         }
 
         // Generate one dataset per label/bar to get a legend item for each color (sparse data approach)
-        const datasets = labels.map((label, index) => {
+        const datasets: ChartDataset<"bar", number[]>[] = labels.map((label, index) => {
             const color = SPECIFIC_REQUEST_COLORS[index % SPECIFIC_REQUEST_COLORS.length];
             const borderColor = color.replace('0.8', '1');
             
             // Create a sparse data array where only the corresponding index has the value
-            const sparseData = new Array(labels.length).fill(null);
+            const sparseData: (number | null)[] = new Array(labels.length).fill(null);
             sparseData[index] = rawData[index];
 
             return {
                 label: label, 
-                data: sparseData,
+                // data must be cast to (number | null)[] which is compatible with number[] for ChartJS
+                data: sparseData as number[], 
                 backgroundColor: color,
                 borderColor: borderColor, 
                 borderWidth: 1,
@@ -467,10 +472,12 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
             };
         });
 
+        // The final return object satisfies ChartData<"bar", number[], string>
         return {
-            labels: labels, // X-axis labels (Request Types)
-            datasets: datasets, // Array of datasets (one per bar)
+            labels: labels, // string[]
+            datasets: datasets, // ChartDataset<"bar", number[]>[]
         };
+        
     }, [data.specificRequests]);
 
 
