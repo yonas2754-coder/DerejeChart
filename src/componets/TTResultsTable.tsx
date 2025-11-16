@@ -14,7 +14,7 @@ import {
     Info20Regular, Checkmark20Regular, ArrowRight20Regular, ArrowSortDownLines20Regular, 
     ArrowSortUpLines20Regular, ArrowSyncCheckmark20Regular, CheckmarkCircle20Regular, 
     Filter20Regular, DataArea20Regular, ArrowClockwise20Regular,
-    DocumentData20Regular, 
+    DocumentData20Regular, // CORRECTED IMPORT for the Excel icon
 } from "@fluentui/react-icons";
 
 // --- TYPE & CONSTANTS ---
@@ -28,7 +28,7 @@ type SortableColumn =
 export interface ITicket { 
     id: string; serviceNumber: string; zone: string; handler: string; status: LocalTicketStatus; 
     tasksClassification: string; requestType: string; specificRequestType: string; priority: PriorityType;
-    remarks: string | null; 
+    remarks: string | null; // Changed to allow null/undefined based on runtime error
     createdAt: string; pending_endAt: string | null; resolvedAt: string | null;
     duration: string; pendingDurationMs: number; inProgressDurationMs: number; 
 }
@@ -206,17 +206,6 @@ const exportToCSV = (data: ITicket[], filename: string, columnDefs: ReturnType<t
 
 // --- STYLING ---
 const useStyles = makeStyles({
-    // NEW STYLE ADDED TO CENTER THE LOADING SPINNER
-    centerScreen: {
-        ...shorthands.padding("24px", "40px"), 
-        backgroundColor: tokens.colorNeutralBackground2, 
-        minHeight: "100vh", 
-        boxSizing: 'border-box', 
-        display: 'flex', 
-        flexDirection: 'column', 
-        justifyContent: 'center', // Center vertically
-        alignItems: 'center',    // Center horizontally
-    },
     pageWrapper: { 
         ...shorthands.padding("24px", "40px"), 
         backgroundColor: tokens.colorNeutralBackground2, 
@@ -548,12 +537,7 @@ export default function TTResultsPage() {
 
     // --- RENDERING ---
     if (isLoading) {
-        // Use the new centerScreen style
-        return (
-            <div className={styles.centerScreen}>
-                <Spinner size="large" label="Loading data from the server..." />
-            </div>
-        );
+        return <div className={styles.pageWrapper}><Spinner size="large" label="Loading data from the server..." /></div>;
     }
 
     if (isError) {
@@ -670,33 +654,36 @@ export default function TTResultsPage() {
                     sortDirection={sortDirection}
                     handleSort={handleSort}
                     handleSelectAll={handleSelectAll}
-                    handleSelectTicket={handleSelectTicket}
+                    handleSelectTicket={handleSelectTicket} 
                     handleStatusChange={handleStatusChange}
                     singleTicketMutation={singleTicketMutation}
                 />
             </div>
-            
-            {/* --- PAGINATION --- */}
-            <div className={styles.pagination}>
-                <Button 
-                    size="small"
-                    onClick={() => goToPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                >
-                    Previous
-                </Button>
-                <Subtitle2>
-                    Page {currentPage} of {totalPages}
-                </Subtitle2>
-                <Button 
-                    size="small"
-                    onClick={() => goToPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                >
-                    Next
-                </Button>
-            </div>
 
+            {/* --- PAGINATION SECTION --- */}
+            {sorted.length > 0 && (
+                <div className={styles.pagination}>
+                    <Subtitle2 style={{ marginRight: '20px' }}>
+                        Showing **{(currentPage - 1) * PAGE_SIZE + 1}** - **{Math.min(currentPage * PAGE_SIZE, sorted.length)}** of **{sorted.length}** results
+                    </Subtitle2>
+                    <Button disabled={currentPage === 1 || isUpdating} onClick={() => goToPage(currentPage - 1)}>Previous</Button>
+                    {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+                        Math.max(0, currentPage - 3), 
+                        Math.min(totalPages, currentPage + 2)
+                    ).map((page) => (
+                        <Button
+                            key={page}
+                            appearance={page === currentPage ? "primary" : "secondary"}
+                            onClick={() => goToPage(page)}
+                            disabled={isUpdating}
+                        >
+                            {page}
+                        </Button>
+                    ))}
+                    {totalPages > 5 && currentPage < totalPages - 2 && <span>...</span>}
+                    <Button disabled={currentPage === totalPages || isUpdating} onClick={() => goToPage(currentPage + 1)}>Next</Button>
+                </div>
+            )}
         </div>
     );
 }
