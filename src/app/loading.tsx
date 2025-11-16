@@ -2,7 +2,7 @@
 "use client"; // <--- ADD THIS LINE
 
 import * as React from 'react';
-import { Spinner, makeStyles, tokens, Title2 } from '@fluentui/react-components';
+import { Spinner, makeStyles, tokens} from '@fluentui/react-components';
 
 const useStyles = makeStyles({
   container: {
@@ -28,7 +28,7 @@ export default function Loading(): React.ReactElement {
     <div className={styles.container}>
       {/* Fluent UI Spinner */}
       <Spinner size="huge" label="Loading content..." />
-      <Title2>Preparing for you...</Title2>
+    
     </div>
   );
 }
