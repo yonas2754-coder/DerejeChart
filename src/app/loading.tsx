@@ -1,9 +1,8 @@
 // app/loading.tsx
+"use client"; // <--- ADD THIS LINE
+
 import * as React from 'react';
 import { Spinner, makeStyles, tokens, Title2 } from '@fluentui/react-components';
-
-// This component uses Fluent UI styles, so it's a Client Component.
-// If you only used plain HTML/CSS, you could omit "use client".
 
 const useStyles = makeStyles({
   container: {
@@ -29,7 +28,7 @@ export default function Loading(): React.ReactElement {
     <div className={styles.container}>
       {/* Fluent UI Spinner */}
       <Spinner size="huge" label="Loading content..." />
-      <Title2>Preparing ...</Title2>
+      <Title2>Preparing your dashboard...</Title2>
     </div>
   );
 }
