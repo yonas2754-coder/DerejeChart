@@ -634,41 +634,44 @@ export default function TTResultsPage() {
                 </ToolbarButton>
             </Toolbar>
 
-            {/* --- BATCH ACTION BAR --- */}
+                      {/* --- BATCH ACTION BAR --- */}
             {selectedTicketIds.size > 0 && (
                 <div className={styles.batchActionBar}>
                     <span style={{ fontSize: tokens.fontSizeBase300, opacity: 0.9, fontWeight: tokens.fontWeightSemibold }}>
-                        **{selectedTicketIds.size}** selected.
+                        **{selectedTicketIds.size} tickets selected:**
                     </span>
+                    {isUpdating && <Spinner size="extra-tiny" />}
+                    
+                    {actionableTickets.pendingToStart.length > 0 && (
+                        <Button 
+                            appearance="primary" icon={<ArrowSyncCheckmark20Regular />}
+                            onClick={() => handleBatchAction("In-Progress")} disabled={isUpdating}
+                        >
+                            Start Work ({actionableTickets.pendingToStart.length})
+                        </Button>
+                    )}
+                    
+                    {actionableTickets.inProgressToResolve.length > 0 && (
+                        <Button 
+                            appearance="secondary" icon={<CheckmarkCircle20Regular />}
+                            onClick={() => handleBatchAction("Resolved")} disabled={isUpdating}
+                        >
+                            Mark Resolve ({actionableTickets.inProgressToResolve.length})
+                        </Button>
+                    )}
                     <Button 
-                        appearance="secondary"
-                        icon={<ArrowSyncCheckmark20Regular />}
-                        disabled={actionableTickets.pendingToStart.length === 0 || isUpdating}
-                        onClick={() => handleBatchAction("In-Progress")}
-                    >
-                        Batch Start ({actionableTickets.pendingToStart.length})
-                    </Button>
-                    <Button
-                        appearance="primary"
-                        icon={<CheckmarkCircle20Regular />}
-                        disabled={actionableTickets.inProgressToResolve.length === 0 || isUpdating}
-                        onClick={() => handleBatchAction("Resolved")}
-                    >
-                        Batch Resolve ({actionableTickets.inProgressToResolve.length})
-                    </Button>
-                    <Button 
-                        appearance="subtle"
+                        appearance="subtle" 
                         onClick={() => setSelectedTicketIds(new Set())}
+                        disabled={isUpdating}
                     >
                         Clear Selection
                     </Button>
-                    {isUpdating && <Spinner size="tiny" label="Updating..." />}
                 </div>
             )}
-
-
+            
+            {/* --- TABLE CONTAINER --- */}
             <div className={styles.tableCard}>
-                <TTResultsTable
+                <TTResultsTable 
                     pageData={pageData}
                     columns={columns}
                     styles={styles}
@@ -680,35 +683,36 @@ export default function TTResultsPage() {
                     sortDirection={sortDirection}
                     handleSort={handleSort}
                     handleSelectAll={handleSelectAll}
-                    handleSelectTicket={handleSelectTicket}
+                    handleSelectTicket={handleSelectTicket} 
                     handleStatusChange={handleStatusChange}
                     singleTicketMutation={singleTicketMutation}
                 />
             </div>
 
-            {/* --- PAGINATION --- */}
-            <div className={styles.pagination}>
-                <Button 
-                    appearance="subtle" 
-                    disabled={currentPage === 1}
-                    onClick={() => goToPage(currentPage - 1)}
-                >
-                    Previous
-                </Button>
-                <span style={{ fontWeight: tokens.fontWeightSemibold }}>
-                    Page {currentPage} of {totalPages}
-                </span>
-                <Button 
-                    appearance="subtle" 
-                    disabled={currentPage === totalPages}
-                    onClick={() => goToPage(currentPage + 1)}
-                >
-                    Next
-                </Button>
-                <span style={{ marginLeft: '12px' }}>
-                    Showing **{pageData.length}** tickets (Total filtered: **{sorted.length}**)
-                </span>
-            </div>
+            {/* --- PAGINATION SECTION --- */}
+            {sorted.length > 0 && (
+                <div className={styles.pagination}>
+                    <Subtitle2 style={{ marginRight: '20px' }}>
+                        Showing **{(currentPage - 1) * PAGE_SIZE + 1}** - **{Math.min(currentPage * PAGE_SIZE, sorted.length)}** of **{sorted.length}** results
+                    </Subtitle2>
+                    <Button disabled={currentPage === 1 || isUpdating} onClick={() => goToPage(currentPage - 1)}>Previous</Button>
+                    {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+                        Math.max(0, currentPage - 3), 
+                        Math.min(totalPages, currentPage + 2)
+                    ).map((page) => (
+                        <Button
+                            key={page}
+                            appearance={page === currentPage ? "primary" : "secondary"}
+                            onClick={() => goToPage(page)}
+                            disabled={isUpdating}
+                        >
+                            {page}
+                        </Button>
+                    ))}
+                    {totalPages > 5 && currentPage < totalPages - 2 && <span>...</span>}
+                    <Button disabled={currentPage === totalPages || isUpdating} onClick={() => goToPage(currentPage + 1)}>Next</Button>
+                </div>
+            )}
         </div>
     );
 }
