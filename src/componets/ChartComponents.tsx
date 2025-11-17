@@ -217,7 +217,16 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
     };
     
     // FIX: Calculate suggestedMax for Y-axis (value axis) to provide space for top labels.
-    const maxDataValue = Math.max(...chartData.datasets[0].data as number[]);
+    let maxDataValue = 10; // Default max value
+    const dataArray = chartData.datasets?.[0]?.data as number[] | undefined; // Use optional chaining for safe access
+
+    if (dataArray && dataArray.length > 0) {
+        // Ensure only numeric values are considered for max calculation
+        const numericData = dataArray.filter(v => typeof v === 'number') as number[];
+        if (numericData.length > 0) {
+            maxDataValue = Math.max(...numericData);
+        }
+    }
     const suggestedMax = maxDataValue * 1.15; // Add 15% buffer to clear top data labels
 
     const chartOptions: ChartOptions<"bar"> = {
@@ -345,9 +354,27 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
     };
 
     // FIX: Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
-    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
-    // Get max of all individual data points for a generous buffer in stacked bar total
-    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    let maxDataValue = 10; // Default max value
+
+    // Check for existence of data and calculate the maximum stacked total across all handlers
+    if (updatedChartData.datasets && updatedChartData.labels && updatedChartData.labels.length > 0) {
+        const numLabels = updatedChartData.labels.length;
+        const sums = new Array(numLabels).fill(0);
+
+        updatedChartData.datasets.forEach(dataset => {
+            (dataset.data as (number|null)[]).forEach((value, index) => {
+                // Ensure value is a number before adding
+                if (typeof value === 'number' && index < numLabels) {
+                    sums[index] += value;
+                }
+            });
+        });
+
+        if (sums.length > 0) {
+            maxDataValue = Math.max(...sums);
+        }
+    }
+    
     const suggestedMax = maxDataValue * 1.20; // Add 20% buffer
 
     return (
@@ -394,8 +421,15 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
     };
 
     // FIX: Calculate suggestedMax for Y-axis (value axis)
-    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
-    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    let maxDataValue = 10; // Default max value
+    const allData = updatedChartData.datasets.flatMap(d => d.data as number[] || []);
+    
+    if (allData.length > 0) {
+        const numericData = allData.filter(v => typeof v === 'number') as number[];
+        if (numericData.length > 0) {
+            maxDataValue = Math.max(...numericData);
+        }
+    }
     const suggestedMax = maxDataValue * 1.15; // Add 15% buffer for top label clearance
 
 
@@ -513,7 +547,15 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
 
     // Determine the maximum value for suggestedMax
     const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
-    const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
+    
+    let maxDataValue = 10; // Default max value
+    if (rawData.length > 0) {
+        const numericData = rawData.filter(v => typeof v === 'number') as number[];
+        if (numericData.length > 0) {
+            maxDataValue = Math.max(...numericData);
+        }
+    }
+    
     // Add a 15% buffer to the maximum value to ensure datalabels are not clipped
     const suggestedMax = maxDataValue * 1.15; 
 
