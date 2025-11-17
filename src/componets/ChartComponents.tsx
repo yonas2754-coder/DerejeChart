@@ -77,7 +77,7 @@ const useStyles = makeStyles({
     },
     controlGroup: {
         display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap',
-        // NEW: Mobile responsiveness for control group
+        // NEW: Mobile responsiveness for control group (vertical stacking)
         "@media (max-width: 768px)": { 
             flexDirection: 'column', 
             alignItems: 'stretch', 
@@ -112,7 +112,7 @@ const useStyles = makeStyles({
     dateControl: { 
         display: 'flex', 
         alignItems: 'center', gap: '12px', 
-        // NEW: Mobile responsiveness for date control
+        // NEW: Mobile responsiveness for date control (vertical stacking)
         "@media (max-width: 768px)": { 
             flexDirection: 'column', 
             alignItems: 'stretch',
@@ -261,7 +261,7 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            title: { display: false }, // FIX: Removed internal chart title to prevent overlap with CardHeader title
+            title: { display: false }, // Removed internal chart title to prevent overlap with CardHeader title
             tooltip: {
                 callbacks: {
                     title: (context) => context[0].label, 
@@ -339,7 +339,7 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
        
                 title: { display: true, text: 'Total Task Count' }, 
                 min: 0,
-                suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                suggestedMax: suggestedMax, // Added suggestedMax for datalabel clearance
             }
         },
     };
@@ -386,7 +386,7 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
         ...data.handlerPerformance,
         datasets: updatedDatasets
     };
-    // FIX: Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
+    // Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
     let maxDataValue = 10;
     // Default max value
 
@@ -409,8 +409,8 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
         }
     }
     
-    const suggestedMax = maxDataValue * 1.20;
-    // Add 20% buffer
+    // Add 15% buffer for data label clearance on the right side
+    const suggestedMax = maxDataValue * 1.15; 
 
     return (
         <Card className={styles.chartCard}>
@@ -420,23 +420,56 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
             </div>} />
             <ChartWrapper isLoading={isLoading}>
       
-                <Bar ref={chartRef} data={updatedChartData} options={{
-                    indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { display: true, position: 'bottom' as const }, 
-      
-                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
-                    },
-                    scales: { 
-                        x: { 
- 
-                            stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' },
-                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for right-side clearance
-                        
-                        }, 
-                        y: { stacked: true, grid: { display: false } } 
-                    }
-                }}/>
+                <Bar 
+                    ref={chartRef} 
+                    data={updatedChartData} 
+                    options={{
+                        // 1. Horizontal Bar Chart
+                        indexAxis: 'y', 
+                        responsive: true, 
+                        maintainAspectRatio: false, 
+                        plugins: { 
+                            legend: { display: true, position: 'bottom' as const }, 
+                            title: { display: false },
+                            // 2. Added datalabels configuration for the total stacked value
+                            datalabels: {
+                                display: true,
+                                color: tokens.colorNeutralForeground1, // Dark text color
+                                anchor: 'end',
+                                align: 'right', // Aligns the text outside the bar on the right
+                                offset: 4,
+                                font: { weight: 'bold' as const, size: 10 },
+                                formatter: (value, context) => {
+                                    // Calculate the total stacked value for the current bar (index)
+                                    const index = context.dataIndex;
+                                    let total = 0;
+                                    updatedChartData.datasets.forEach(dataset => {
+                                        const dataValue = dataset.data[index];
+                                        if (typeof dataValue === 'number') {
+                                            total += dataValue;
+                                        }
+                                    });
+                                    // Display the total value at the end of the bar
+                                    return total.toString();
+                                }
+                            }
+                        },
+                        scales: { 
+                            x: { // X-axis handles task count (value)
+                                stacked: true, 
+                                grid: { display: true }, 
+                                title: { display: true, text:'Task Count' },
+                                suggestedMax: suggestedMax, // Uses max for right-side clearance
+                                min: 0,
+                            }, 
+                            y: { // Y-axis handles handler names (category)
+                                stacked: true, 
+                                grid: { display: false }, 
+                                title: { display: true, text:'Handler' },
+                            } 
+                        }
+                    }}
+                />
             </ChartWrapper>
         </Card>
     );
@@ -481,7 +514,7 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
                 <Bar ref={chartRef} data={updatedChartData} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                        title: { display: false } // FIX: 
+                        title: { display: false } // 
                         Removed internal chart title to prevent overlap
                     },
                     scales: { // FIX: Added explicit scales object
@@ -517,7 +550,7 @@ const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate
                 <Doughnut ref={chartRef} data={data.distribution} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                        title: { display: false } // FIX: Removed internal chart 
+                        title: { display: false } // Removed internal chart 
                         title to prevent overlap
                     }
                 }} />
@@ -546,10 +579,10 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
     // Memoize the chart data transformation to ensure performance
     const chartData: ChartData<"bar", number[], string> = React.useMemo(() => {
         
-        // FIX: Safely access labels and cast them to string[]
+        // Safely access labels and cast them to string[]
         const labels: string[] = (data.specificRequests?.labels as string[] | undefined) || []; 
         
-        // FIX: Safely access rawData and cast them to number[]
+        // Safely access rawData and cast them to number[]
         const rawData: number[] 
         = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
 
@@ -620,7 +653,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                             position: 'bottom', 
                             labels: { padding: 10 }
                         },
-                        title: { display: false }, // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false }, // Removed internal chart title to prevent overlap
        
                         tooltip: {
                             // Tooltip customized for sparse data
@@ -636,7 +669,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                     scales: {
       
                         x: { 
-                            title: { display: true, text: 'Specific Request Type', padding: 10 }, // FIX: Added padding to x-axis title
+                            title: { display: true, text: 'Specific Request Type', padding: 10 }, // Added padding to x-axis title
                             stacked: true, // Makes the single bars 
                             overlay correctly
                             ticks: { 
@@ -653,7 +686,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                  
                             min: 0,
                             stacked: true, // Stacks the scale
-                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                            suggestedMax: suggestedMax, // Added suggestedMax for datalabel clearance
                    
                         } 
                     }
@@ -680,7 +713,7 @@ const HistoryLineChart: React.FC<{ data: DashboardAPIResponse; isLoading: boolea
       
                 <Line ref={chartRef} data={data.taskHistory} options={{
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, title: { display: false } }, // FIX: Removed internal chart title to prevent overlap
+                    plugins: { legend: { display: false }, title: { display: false } }, // Removed internal chart title to prevent overlap
                     scales: {
   
                         x: { grid: { display: false }, title: { display: true, text: 'Date' } },
@@ -769,6 +802,12 @@ export const DashboardCharts: React.FC = () => {
                     <div className={styles.sliderContainer}>
                    
                         <Label htmlFor="num-weeks-slider">Weekly Trend Analysis (Weeks)</Label>
+                        
+                        {/* MOVED: This div is now above the Slider */}
+                        <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2 }}>
+                            Viewing **{numWeeks}** weeks of data for comparison.
+                        </div>
+
                         <Slider
                             id="num-weeks-slider"
                             min={2} max={6} step={1} value={numWeeks}
@@ -777,9 +816,7 @@ export const DashboardCharts: React.FC = () => {
                             aria-valuetext={`${numWeeks} Weeks`}
                         />
                         
-                        <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2 }}>
-                            Viewing **{numWeeks}** weeks of data for comparison.
-                        </div>
+                        {/* REMOVED: Original position of the div was here */}
                     </div>
 
                     <Divider vertical />
