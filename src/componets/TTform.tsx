@@ -97,6 +97,23 @@ const useStyles = makeStyles({
     fontWeight: tokens.fontWeightSemibold,
     '@media (max-width: 768px)': { width: '100%' },
   },
+  // ====================================================================
+  // --- NEW STYLES FOR RADIO GROUP RESPONSIVENESS ---
+  radioGroupResponsive: {
+    // Fluent UI's RadioGroup with layout="horizontal" uses display: flex internally.
+    // We target that flex container for responsiveness.
+    // This targets screens up to 768px (standard mobile/tablet breakpoint)
+    '@media (max-width: 768px)': {
+      // Force wrapping of the items
+      flexWrap: 'wrap',
+      // Ensure all radio buttons are given 50% width so two fit per row.
+      '> *': { // Target the direct children (the individual Radio components)
+        width: '50%',
+        boxSizing: 'border-box', // Include padding/border in the 50% width
+      },
+    },
+  },
+  // ====================================================================
 });
 
 // --- Types ---
@@ -227,6 +244,8 @@ const TTForm: React.FC = () => {
           <Field label="Priority *" required>
             <RadioGroup
               layout="horizontal"
+              // ADDED CLASS HERE
+              className={styles.radioGroupResponsive} 
               value={ticket.priority}
               onChange={(_, data) => handleChange('priority', data.value)}
               disabled={createTicket.isPending}
@@ -273,6 +292,8 @@ const TTForm: React.FC = () => {
           <Field label="Request Source/Type *" required>
             <RadioGroup
               layout="horizontal"
+              // ADDED CLASS HERE
+              className={styles.radioGroupResponsive}
               value={ticket.requestType}
               onChange={(_, data) => handleChange('requestType', data.value)}
               disabled={createTicket.isPending}
@@ -299,16 +320,16 @@ const TTForm: React.FC = () => {
               disabled={createTicket.isPending}
             >
               {/* Use the mapped array from the utility file */}
-             {mappedSpecificRequestOptions.map(option => (
-    <Option 
-        key={option.value} 
-        value={option.value} // The actual value submitted (LONG Prisma enum)
-        title={option.description} // Full description for hover
-        // FIX: Add the required 'text' prop for Fluent UI Dropdown functionality
-        text={option.label}
-    >
-      {option.description} {/* The user-friendly display text */}
-    </Option>
+              {mappedSpecificRequestOptions.map(option => (
+                <Option 
+                  key={option.value} 
+                  value={option.value} // The actual value submitted (LONG Prisma enum)
+                  title={option.description} // Full description for hover
+                  // FIX: Add the required 'text' prop for Fluent UI Dropdown functionality
+                  text={option.label}
+                >
+                  {option.description} {/* The user-friendly display text */}
+                </Option>
               ))}
             </Dropdown>
           </Field>

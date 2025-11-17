@@ -7,7 +7,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div  className="w-screen h-full flex flex-col bg-gray-100 overflow-hidden p-0">
+    <div  >
       
       {/* 🌞 Sun-Themed Sidebar/Navigation */}
     

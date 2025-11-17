@@ -33,7 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             suppressHydrationWarning={true}
       >
-        <div className="w-screen h-full flex flex-col bg-gray-100 overflow-hidden p-0">
+        <div >
          <QueryProvider>  
         <SessionProvider>
         <Providers>
