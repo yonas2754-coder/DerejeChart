@@ -9,38 +9,34 @@ import {
   TicketStatus,
 } from "@prisma/client";
 
-// Number of tickets to generate
 const TICKET_COUNT = 50;
 
 // --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
 
-// Random date between last 60 days and next 7 days
-function randomDateLast60DaysToFuture7Days(): Date {
+// Strict random date generator between 2 dates
+function randomDateBetween(min: Date, max: Date): Date {
+  return new Date(min.getTime() + Math.random() * (max.getTime() - min.getTime()));
+}
+
+// Random createdAt between last 60 days → next 7 days
+function randomCreatedAt() {
   const now = new Date();
 
-  // 60 days ago
-  const past = new Date();
+  const past = new Date(now);
   past.setDate(now.getDate() - 60);
 
-  // 7 days in the future
-  const future = new Date();
+  const future = new Date(now);
   future.setDate(now.getDate() + 7);
 
-  // Random timestamp between past → future
-  return new Date(
-    past.getTime() +
-      Math.random() * (future.getTime() - past.getTime())
-  );
+  return randomDateBetween(past, future);
 }
 
-// Random picker for enum values
-function pickRandom<T>(values: T[]): T {
-  return values[Math.floor(Math.random() * values.length)];
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
 }
 
-// Random Ethiopian 09 phone number
 function randomServiceNumber() {
   return `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 }
@@ -50,9 +46,7 @@ function randomServiceNumber() {
 // --------------------------------------------------
 export async function POST() {
   try {
-    // Load all users (must exist)
     const users = await prisma.user.findMany();
-
     if (users.length === 0) {
       return NextResponse.json(
         { error: "No users found. Seed users first." },
@@ -63,57 +57,58 @@ export async function POST() {
     const tickets: any[] = [];
 
     for (let i = 0; i < TICKET_COUNT; i++) {
-      // NEW: createdAt between last 60 days and future 7 days
-      const createdAt = randomDateLast60DaysToFuture7Days();
+      const createdAt = randomCreatedAt();
 
-      // Always assign creators/handlers
       const createdByUser = pickRandom(users);
       const handlerUser = pickRandom(users);
 
-      // Decide ticket status
-      const statusChance = Math.random();
+      // Random status
+      const randomStatus = Math.random();
       let status: TicketStatus = TicketStatus.Pending;
       let resolvedAt: Date | null = null;
+      let pending_endAt: Date | null = null;
 
-      if (statusChance < 0.30) {
+      if (randomStatus < 0.3) {
+        // 30% resolved
         status = TicketStatus.Resolved;
 
-        // resolvedAt always AFTER createdAt
-        resolvedAt = new Date(
-          createdAt.getTime() +
-            Math.random() * (5 * 24 * 60 * 60 * 1000)
+        // resolvedAt AFTER createdAt (1–5 days)
+        resolvedAt = randomDateBetween(
+          createdAt,
+          new Date(createdAt.getTime() + 5 * 24 * 60 * 60 * 1000)
         );
-      } else if (statusChance < 0.60) {
+      } else if (randomStatus < 0.6) {
+        // 30% in progress
         status = TicketStatus.In_Progress;
+      } else {
+        // 40% pending
+        status = TicketStatus.Pending;
+
+        // pending_endAt AFTER createdAt (1–10 days)
+        pending_endAt = randomDateBetween(
+          createdAt,
+          new Date(createdAt.getTime() + 10 * 24 * 60 * 60 * 1000)
+        );
       }
 
       tickets.push({
         serviceNumber: randomServiceNumber(),
-
         tasksClassification: pickRandom(Object.values(TaskClassification)),
         requestType: pickRandom(Object.values(RequestType)),
         specificRequestType: pickRandom(Object.values(SpecificRequestType)),
         zone: pickRandom(Object.values(Zone)),
-        remarks: "Auto-generated test ticket",
         priority: pickRandom(Object.values(Priority)),
+        remarks: "Auto-generated test ticket",
 
         status,
-
-        // pending_endAt only if pending
-        pending_endAt:
-          status === TicketStatus.Pending
-            ? new Date(
-                createdAt.getTime() +
-                  Math.random() * (10 * 24 * 60 * 60 * 1000)
-              )
-            : null,
-
+        pending_endAt,
         resolvedAt,
+
         createdAt,
         updatedAt: new Date(),
 
         createdById: createdByUser.id,
-        handlerId: handlerUser.id, // always has handler
+        handlerId: handlerUser.id,
       });
     }
 
@@ -123,10 +118,7 @@ export async function POST() {
     });
 
     return NextResponse.json(
-      {
-        message: "Ticket seeding complete",
-        total: result.count,
-      },
+      { message: "Ticket seeding complete", total: result.count },
       { status: 201 }
     );
   } catch (error) {
