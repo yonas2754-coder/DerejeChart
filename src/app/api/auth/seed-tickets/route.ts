@@ -12,18 +12,26 @@ import {
 // Number of tickets to generate
 const TICKET_COUNT = 50;
 
-// ----------------------------------------------
-// RANDOM HELPERS
-// ----------------------------------------------
+// --------------------------------------------------
+// HELPERS
+// --------------------------------------------------
 
-// Random date within last 60 days
-function randomDateLast60Days(): Date {
+// Random date between last 60 days and next 7 days
+function randomDateLast60DaysToFuture7Days(): Date {
   const now = new Date();
+
+  // 60 days ago
   const past = new Date();
   past.setDate(now.getDate() - 60);
 
+  // 7 days in the future
+  const future = new Date();
+  future.setDate(now.getDate() + 7);
+
+  // Random timestamp between past → future
   return new Date(
-    past.getTime() + Math.random() * (now.getTime() - past.getTime())
+    past.getTime() +
+      Math.random() * (future.getTime() - past.getTime())
   );
 }
 
@@ -37,9 +45,12 @@ function randomServiceNumber() {
   return `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 }
 
+// --------------------------------------------------
+// POST: Seed Tickets
+// --------------------------------------------------
 export async function POST() {
   try {
-    // Load all users (seed users must exist)
+    // Load all users (must exist)
     const users = await prisma.user.findMany();
 
     if (users.length === 0) {
@@ -52,24 +63,25 @@ export async function POST() {
     const tickets: any[] = [];
 
     for (let i = 0; i < TICKET_COUNT; i++) {
-      // Always generate a createdAt within last 60 days
-      const createdAt = randomDateLast60Days();
+      // NEW: createdAt between last 60 days and future 7 days
+      const createdAt = randomDateLast60DaysToFuture7Days();
 
-      // Always assign a createdBy user
+      // Always assign creators/handlers
       const createdByUser = pickRandom(users);
-
-      // Always assign a handler (100%)
       const handlerUser = pickRandom(users);
 
-      // Random status logic
+      // Decide ticket status
       const statusChance = Math.random();
       let status: TicketStatus = TicketStatus.Pending;
       let resolvedAt: Date | null = null;
 
       if (statusChance < 0.30) {
         status = TicketStatus.Resolved;
+
+        // resolvedAt always AFTER createdAt
         resolvedAt = new Date(
-          createdAt.getTime() + Math.random() * (5 * 24 * 60 * 60 * 1000)
+          createdAt.getTime() +
+            Math.random() * (5 * 24 * 60 * 60 * 1000)
         );
       } else if (statusChance < 0.60) {
         status = TicketStatus.In_Progress;
@@ -77,14 +89,17 @@ export async function POST() {
 
       tickets.push({
         serviceNumber: randomServiceNumber(),
+
         tasksClassification: pickRandom(Object.values(TaskClassification)),
         requestType: pickRandom(Object.values(RequestType)),
         specificRequestType: pickRandom(Object.values(SpecificRequestType)),
         zone: pickRandom(Object.values(Zone)),
         remarks: "Auto-generated test ticket",
         priority: pickRandom(Object.values(Priority)),
+
         status,
 
+        // pending_endAt only if pending
         pending_endAt:
           status === TicketStatus.Pending
             ? new Date(
@@ -98,7 +113,7 @@ export async function POST() {
         updatedAt: new Date(),
 
         createdById: createdByUser.id,
-        handlerId: handlerUser.id, // ALWAYS has a handler
+        handlerId: handlerUser.id, // always has handler
       });
     }
 

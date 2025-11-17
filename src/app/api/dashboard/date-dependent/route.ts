@@ -8,7 +8,19 @@ import {
     getTaskHistoryData,
     getSpecificRequestTypeDistribution 
 } from '@/data/data'; 
-import { parseISO, isValid, startOfDay, subDays, addDays } from 'date-fns'; // <-- CRITICAL: Imported addDays
+import { parseISO, isValid, subDays, addDays, format } from 'date-fns'; 
+
+// CRITICAL UTC HELPER: Parses 'YYYY-MM-DD' string directly into a 00:00:00 UTC Date object.
+// This ensures the date object is consistent across all environments (local and Vercel).
+const parseDateStringAsUTC = (dateString: string): Date => {
+    const parts = dateString.split('-');
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+
+    // Creates a date object whose time components are 00:00:00 UTC
+    return new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+};
 
 /**
  * Handles GET requests to /api/dashboard/date-dependent
@@ -18,44 +30,37 @@ export async function GET(request: NextRequest) {
     const dateParam = searchParams.get('date');
 
     let selectedDate: Date;
-    const DEFAULT_DATE = subDays(new Date(), 1); 
+    
+    // Calculate default date one day ago, formatted as YYYY-MM-DD
+    const defaultDateString = format(subDays(new Date(), 1), 'yyyy-MM-dd');
 
     if (!dateParam) {
-        // Use startOfDay to ensure a clean date object
-        selectedDate = startOfDay(DEFAULT_DATE); 
+        // If no date is provided, use the UTC-locked default date
+        selectedDate = parseDateStringAsUTC(defaultDateString); 
     } else {
-        const parsedDate = parseISO(dateParam);
-        if (!isValid(parsedDate)) {
+        // Use date-fns for basic validation before parsing as UTC
+        if (!isValid(parseISO(dateParam))) {
             return NextResponse.json({
                 message: "Invalid date format. Expected YYYY-MM-DD.",
                 success: false,
             }, { status: 400 });
         }
-        // Use startOfDay to handle the date consistently at 00:00:00 UTC
-        selectedDate = startOfDay(parsedDate);
+        // FIX: Force date parsing to 00:00:00 UTC
+        selectedDate = parseDateStringAsUTC(dateParam);
     }
 
     try {
-        // --- FIX: Define the query range using the start of the next day ---
-        
-        // 1. singleDayStart (Inclusive boundary: >=)
+        // The dates are now guaranteed to be UTC 00:00:00
         const singleDayStart = selectedDate; 
-        
-        // 2. singleDayEndExclusive (Exclusive boundary: <)
-        // This is the start of the next day (e.g., Nov 18 00:00:00 UTC)
         const singleDayEndExclusive = addDays(singleDayStart, 1); 
 
-        // --- Fetch all necessary date-dependent data ---
-        // CRITICAL: Update all calls to pass (singleDayStart, singleDayEndExclusive)
-
+        // --- Fetch all necessary date-dependent data (passing UTC boundaries) ---
         const handlerPerformance = await getFilteredHandlerPerformanceData(singleDayStart, singleDayEndExclusive);
         const zonalTasks = await getFilteredZonalTaskData(singleDayStart, singleDayEndExclusive);
-        
-        // Updated signatures:
         const distribution = await getTaskDistributionData(singleDayStart, singleDayEndExclusive);
         const specificRequests = await getSpecificRequestTypeDistribution(singleDayStart, singleDayEndExclusive); 
 
-        // taskHistory only needs the anchor date as it calculates its 7-day range internally:
+        // taskHistory only needs the UTC-locked date as its anchor
         const taskHistory = await getTaskHistoryData(selectedDate); 
         
         // --- Return the aggregated data ---

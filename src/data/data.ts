@@ -1,7 +1,8 @@
 // src/data/data.ts
 
 import prisma from '~/prisma/client';
-import { format, startOfWeek, endOfWeek, subWeeks, startOfDay, subDays, addDays } from 'date-fns'; // <-- CRITICAL: Imported addDays
+// Using only UTC-safe date-fns imports
+import { format, subWeeks, subDays, addDays, getDate, getMonth, getYear } from 'date-fns'; 
 import { ChartData } from 'chart.js';
 import { 
     TaskClassification, 
@@ -10,7 +11,7 @@ import {
 } from '@prisma/client';
 
 // =======================================================
-// 1. Types & Structure
+// 1. Types & Structure (Omitted for brevity)
 // =======================================================
 
 export type TaskType = TaskClassification; 
@@ -47,17 +48,38 @@ const COLORS = {
 };
 
 // =======================================================
-// 2. Database Query Function (FIXED)
+// UTC Helper Functions (CRITICAL for local/Vercel parity)
 // =======================================================
 
-// FIX 1: Renamed endDate to endDateExclusive and changed 'lte' to 'lt'
-async function fetchTasks(startDate: Date, endDateExclusive: Date, type?: TaskType): Promise<TroubleTicketRecord[]> {
+// FIX: Custom UTC-aware startOfWeek function to bypass local timezone issues
+const getStartOfWeekUTC = (date: Date, options: { weekStartsOn: 0 | 1 }) => {
+    // Get the UTC day (0=Sun, 1=Mon)
+    const day = date.getUTCDay();
+    const weekStartsOn = options.weekStartsOn || 0;
     
+    // Calculate the difference in days to the start of the week
+    const diff = (day < weekStartsOn ? 7 : 0) + day - weekStartsOn;
+    
+    const newDate = new Date(date.getTime());
+    newDate.setUTCDate(date.getUTCDate() - diff);
+    // Lock to midnight UTC
+    newDate.setUTCHours(0, 0, 0, 0);
+
+    return newDate;
+};
+
+
+// =======================================================
+// 2. Database Query Function 
+// =======================================================
+
+// This is correct as it relies on the UTC dates passed from the API route.
+async function fetchTasks(startDate: Date, endDateExclusive: Date, type?: TaskType): Promise<TroubleTicketRecord[]> {
     const queryResult = await prisma.troubleTicket.findMany({
         where: {
             createdAt: {
                 gte: startDate,
-                lt: endDateExclusive, // <-- THE CRITICAL FIX: Use 'lt' (less than)
+                lt: endDateExclusive, // The correct exclusive boundary check
             },
             ...(type && { tasksClassification: type }), 
         },
@@ -73,7 +95,7 @@ async function fetchTasks(startDate: Date, endDateExclusive: Date, type?: TaskTy
 
 
 // =======================================================
-// 3. Calculation Functions (UPDATED FOR TIMEZONE SAFETY)
+// 3. Calculation Functions (UPDATED FOR UTC CONSISTENCY)
 // =======================================================
 
 // --- A. Weekly Trend Comparison ---
@@ -86,18 +108,20 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
     };
 
     const anchorDate = new Date(); 
-    const currentWeekStart = startOfWeek(anchorDate, { weekStartsOn: 1 });
-    // The end of the current week must be exclusive (start of the next week)
-    const chartDataEndExclusive = startOfWeek(addDays(anchorDate, 7), { weekStartsOn: 1 }); // Next week's start
+    // FIX: Lock anchor date to UTC midnight (e.g., today's date at 00:00:00 UTC)
+    const nowUTC = new Date(Date.UTC(getYear(anchorDate), getMonth(anchorDate), getDate(anchorDate)));
     
-    const chartDataStart = startOfWeek(subWeeks(currentWeekStart, numWeeks - 1), { weekStartsOn: 1 });
+    // FIX: Use UTC-safe startOfWeek helper
+    const currentWeekStart = getStartOfWeekUTC(nowUTC, { weekStartsOn: 1 });
+    const chartDataEndExclusive = getStartOfWeekUTC(addDays(nowUTC, 7), { weekStartsOn: 1 }); 
+    
+    const chartDataStart = getStartOfWeekUTC(subWeeks(currentWeekStart, numWeeks - 1), { weekStartsOn: 1 });
 
     const labels: string[] = [];
     for (let i = numWeeks - 1; i >= 0; i--) {
         labels.push(format(subWeeks(currentWeekStart, i), 'MMM dd')); 
     }
     
-    // Fetch all tasks for the entire period using the new exclusive boundary
     const allTasks = await fetchTasks(chartDataStart, chartDataEndExclusive); 
 
     for (const type of taskTypes) {
@@ -106,13 +130,13 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
         let totalPriorWeeks = 0;
 
         for (let i = numWeeks - 1; i >= 0; i--) {
-            const weekStart = startOfWeek(subWeeks(currentWeekStart, i), { weekStartsOn: 1 });
-            // Define the end as the start of the next week (exclusive boundary)
-            const weekEndExclusive = startOfWeek(addDays(subWeeks(currentWeekStart, i), 7), { weekStartsOn: 1 }); 
+            // FIX: Use UTC-safe startOfWeek helper
+            const weekStart = getStartOfWeekUTC(subWeeks(currentWeekStart, i), { weekStartsOn: 1 });
+            const weekEndExclusive = getStartOfWeekUTC(addDays(subWeeks(currentWeekStart, i), 7), { weekStartsOn: 1 }); 
 
             const count = typeTasks.filter(t => 
                 t.createdAt.getTime() >= weekStart.getTime() && 
-                t.createdAt.getTime() < weekEndExclusive.getTime() // FIX: Use '<' for internal filter
+                t.createdAt.getTime() < weekEndExclusive.getTime() // Use exclusive boundary
             ).length;
 
             dataPoints.push(count);
@@ -122,7 +146,6 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
             }
         }
         
-        // ... rest of percentage calculation logic remains the same
         const currentWeekTotal = dataPoints[dataPoints.length - 1] || 0;
         const priorWeeksCount = numWeeks - 1;
         const priorAverage = priorWeeksCount > 0 ? totalPriorWeeks / priorWeeksCount : 0;
@@ -157,9 +180,8 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
 }
 
 // --- B. Handler Performance ---
-// FIX 2: Updated signature and passed to fetchTasks
 export async function getFilteredHandlerPerformanceData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar"> & { options: any }> {
-    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    const allTasks = await fetchTasks(startDate, endDateExclusive); 
     
     const handlerMap = allTasks.reduce((acc, task) => {
         const handlerName = task.handler?.name || 'Unassigned';
@@ -206,9 +228,8 @@ export async function getFilteredHandlerPerformanceData(startDate: Date, endDate
 }
 
 // --- C. Zonal Task Data ---
-// FIX 2: Updated signature and passed to fetchTasks
 export async function getFilteredZonalTaskData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar">> {
-    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    const allTasks = await fetchTasks(startDate, endDateExclusive); 
     
     const allZones = Array.from(new Set(allTasks.map(t => t.zone))).filter(Boolean).sort(); 
     const taskTypes: TaskType[] = [TaskClassification.Provisioning, TaskClassification.Maintenance, TaskClassification.Others];
@@ -242,9 +263,8 @@ export async function getFilteredZonalTaskData(startDate: Date, endDateExclusive
 }
 
 // --- D. Task Classification Distribution (Doughnut) ---
-// FIX 3: Updated signature and passed to fetchTasks
 export async function getTaskDistributionData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"doughnut">> {
-    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    const allTasks = await fetchTasks(startDate, endDateExclusive); 
     const taskTypes: TaskType[] = [TaskClassification.Provisioning, TaskClassification.Maintenance, TaskClassification.Others];
 
     const counts = taskTypes.map(type => 
@@ -264,33 +284,29 @@ export async function getTaskDistributionData(startDate: Date, endDateExclusive:
 // --- E. Historical Daily Task Volume (Line) ---
 export async function getTaskHistoryData(anchorDate: Date, days: number = 7): Promise<ChartData<"line">> {
     
-    // Calculate the exclusive end boundary: Start of the day AFTER the anchorDate
-    const anchorDayStart = startOfDay(anchorDate);
-    const endDateExclusive = addDays(anchorDayStart, 1); 
+    // anchorDate is already UTC-locked by the API route (00:00:00 UTC)
     
-    // Calculate the inclusive start boundary: Start of the day 7 days before the exclusive end
+    const endDateExclusive = addDays(anchorDate, 1); 
     const startDate = subDays(endDateExclusive, days);
 
-    // Fetch tasks using the correct exclusive boundary
-    const allTasks = await fetchTasks(startDate, endDateExclusive); // fetchTasks now uses 'lt'
+    const allTasks = await fetchTasks(startDate, endDateExclusive); 
     
-    // Logic for creating labels and dates for the chart
     const dates: Date[] = [];
     const labels: string[] = [];
     
-    // Dates are calculated from the anchorDate backwards to ensure the last day is correct
     for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(anchorDayStart, i);
+        // subDays works correctly on the UTC date
+        const date = subDays(anchorDate, i);
         dates.push(date);
         labels.push(format(date, 'MMM d'));
     }
 
-    // FIX 4: Internal filtering logic must also use the exclusive boundary
     const dataPoints = dates.map(dayStart => {
-        const dayEndExclusive = addDays(dayStart, 1); // Start of the next day
+        // dayStart is already UTC 00:00:00
+        const dayEndExclusive = addDays(dayStart, 1); 
         return allTasks.filter(t => 
             t.createdAt.getTime() >= dayStart.getTime() && 
-            t.createdAt.getTime() < dayEndExclusive.getTime() // FIX: Use '<' for internal filter
+            t.createdAt.getTime() < dayEndExclusive.getTime() 
         ).length;
     });
 
@@ -308,9 +324,8 @@ export async function getTaskHistoryData(anchorDate: Date, days: number = 7): Pr
 }
 
 // --- F. Specific Request Type Distribution (Bar) ---
-// FIX 3: Updated signature and passed to fetchTasks
 export async function getSpecificRequestTypeDistribution(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar">> {
-    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    const allTasks = await fetchTasks(startDate, endDateExclusive); 
     
     // Get all unique request types
     const allRequestTypes: SpecificRequestType[] = Array.from(new Set(allTasks.map(t => t.specificRequestType))).filter(Boolean).sort() as SpecificRequestType[];
