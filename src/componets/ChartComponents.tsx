@@ -8,7 +8,7 @@ import {
     Field, Spinner,
 } from "@fluentui/react-components";
 import { DatePicker } from "@fluentui/react-datepicker-compat"; 
-import { Bar, Doughnut, Line, ChartProps } from "react-chartjs-2"; // Added ChartProps for completeness
+import { Bar, Doughnut, Line, ChartProps } from "react-chartjs-2"; 
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, 
     BarElement, Title, Tooltip, Legend, ArcElement, 
@@ -80,7 +80,8 @@ const useStyles = makeStyles({
         backgroundColor: tokens.colorNeutralBackground1, ...shorthands.padding("12px", "20px"),
         ...shorthands.borderRadius(tokens.borderRadiusMedium), boxShadow: tokens.shadow8, marginBottom: "20px",
     },
-    controlGroup: {
+   
+      controlGroup: {
         display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap',
           "@media (max-width: 768px)": { 
             flexDirection: 'column', 
@@ -94,6 +95,7 @@ const useStyles = makeStyles({
         ...shorthands.margin("0", "0", "8px", "0"),
     },
     sectionTitle: {
+        display:'flex',justifyContent:'center' ,alignItems:'center', gap:'10px' ,
         ...shorthands.margin("20px", "0", "10px", "0"), color: tokens.colorNeutralForeground1,
     },
     kpiValue: {
@@ -105,7 +107,7 @@ const useStyles = makeStyles({
     kpiTrendPositive: { color: tokens.colorPaletteGreenForeground1, },
     kpiTrendNegative: { color: tokens.colorPaletteRedForeground1, },
     kpiTrendNeutral: { color: tokens.colorNeutralForeground3, },
-    dateControl: { 
+      dateControl: { 
         display: 'flex', 
         alignItems: 'center', gap: '12px', 
         // **ADDED/CONFIRMED: Vertical stacking on small screens (e.g., mobile)**
@@ -227,6 +229,10 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
     const handleDownload = () => {
         downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
     };
+    
+    // FIX: Calculate suggestedMax for Y-axis (value axis) to provide space for top labels.
+    const maxDataValue = Math.max(...chartData.datasets[0].data as number[]);
+    const suggestedMax = maxDataValue * 1.15; // Add 15% buffer to clear top data labels
 
     const chartOptions: ChartOptions<"bar"> = {
         responsive: true,
@@ -298,7 +304,11 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         },
         scales: {
             x: { title: { display: true, text: 'Week' }, grid: { display: false } },
-            y: { title: { display: true, text: 'Total Task Count' }, min: 0 }
+            y: { 
+                title: { display: true, text: 'Total Task Count' }, 
+                min: 0,
+                suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+            }
         },
     };
     
@@ -348,6 +358,12 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
         datasets: updatedDatasets
     };
 
+    // FIX: Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
+    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
+    // Get max of all individual data points for a generous buffer in stacked bar total
+    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    const suggestedMax = maxDataValue * 1.20; // Add 20% buffer
+
     return (
         <Card className={styles.chartCard}>
             <CardHeader header={<div className={styles.cardHeaderWithAction}>
@@ -362,7 +378,10 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
                         title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     },
                     scales: { 
-                        x: { stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' } }, 
+                        x: { 
+                            stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' },
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for right-side clearance
+                        }, 
                         y: { stacked: true, grid: { display: false } } 
                     }
                 }}/>
@@ -388,6 +407,11 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
         datasets: updatedDatasets
     };
 
+    // FIX: Calculate suggestedMax for Y-axis (value axis)
+    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
+    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    const suggestedMax = maxDataValue * 1.15; // Add 15% buffer for top label clearance
+
 
     return (
         <Card className={styles.chartCard}>
@@ -399,7 +423,15 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
                 <Bar ref={chartRef} data={updatedChartData} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                    },
+                    scales: { // FIX: Added explicit scales object
+                        x: { title: { display: true, text: 'Zone/Region' } },
+                        y: {
+                            title: { display: true, text: 'Task Count' },
+                            min: 0,
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                        }
                     } 
                 }} />
             </ChartWrapper>
@@ -423,7 +455,7 @@ const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate
                 <Doughnut ref={chartRef} data={data.distribution} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     }
                 }} />
             </ChartWrapper>
@@ -493,6 +525,12 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
         
     }, [data.specificRequests]);
 
+    // Determine the maximum value for suggestedMax
+    const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
+    const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
+    // Add a 15% buffer to the maximum value to ensure datalabels are not clipped
+    const suggestedMax = maxDataValue * 1.15; 
+
 
     return (
         // Use the doubleHeightCard style
@@ -537,6 +575,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                             title: { display: true, text: 'Number of Tasks' }, 
                             min: 0,
                             stacked: true, // Stacks the scale
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
                         } 
                     }
                 }} />
@@ -642,24 +681,25 @@ export const DashboardCharts: React.FC = () => {
                     <Divider vertical />
 
                     {/* Comparison Week Slider */}
-                {/* Comparison Week Slider: Rewritten with Field for vertical stacking */}
                     <div className={styles.sliderContainer}>
-                        <Field label="Weekly Trend Analysis (Weeks)"> 
-                            <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2, marginBottom: '8px' }}>
-                                Viewing **{numWeeks}** weeks of data for comparison.
-                            </div>
-                            <Slider
-                                id="num-weeks-slider"
-                                min={2} max={6} step={1} value={numWeeks}
-                                onChange={(e, data) => setNumWeeks(data.value)}
-                                aria-valuetext={`${numWeeks} Weeks`}
-                            />
-                        </Field>
+                        <Label htmlFor="num-weeks-slider">Weekly Trend Analysis (Weeks)</Label>
+                        <Slider
+                            id="num-weeks-slider"
+                            min={2} max={6} step={1} value={numWeeks}
+                            onChange={(e, data) => setNumWeeks(data.value)}
+                            aria-valuetext={`${numWeeks} Weeks`}
+                        />
+                        <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2 }}>
+                            Viewing **{numWeeks}** weeks of data for comparison.
+                        </div>
                     </div>
 
                     <Divider vertical />
 
-                    
+                    {/* Settings/Configuration Button (Placeholder) */}
+                    <Button appearance="subtle" icon={<SettingsRegular />} aria-label="Dashboard Settings">
+                        Settings
+                    </Button>
                 </div>
             </div>
             

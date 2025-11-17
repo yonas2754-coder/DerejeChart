@@ -7,91 +7,98 @@ import {
   Zone,
   Priority,
   TicketStatus,
+  User,
 } from "@prisma/client";
 
-const TICKET_COUNT = 50;
+const TICKET_COUNT = 200;
 
 // --------------------------------------------------
 // HELPERS
 // --------------------------------------------------
 
-// Strict random date generator between 2 dates
-function randomDateBetween(min: Date, max: Date): Date {
-  return new Date(min.getTime() + Math.random() * (max.getTime() - min.getTime()));
-}
+/**
+ * Returns a random Date between two provided dates.
+ */
+const randomDateBetween = (min: Date, max: Date): Date =>
+  new Date(min.getTime() + Math.random() * (max.getTime() - min.getTime()));
 
-// Random createdAt between last 60 days → next 7 days
-function randomCreatedAt() {
+/**
+ * random createdAt: -60 days to +7 days
+ */
+function randomCreatedAt(): Date {
   const now = new Date();
 
-  const past = new Date(now);
-  past.setDate(now.getDate() - 60);
+  const min = new Date(now);
+  min.setDate(now.getDate() - 60);
 
-  const future = new Date(now);
-  future.setDate(now.getDate() + 7);
+  const max = new Date(now);
+  max.setDate(now.getDate() + 7);
 
-  return randomDateBetween(past, future);
+  return randomDateBetween(min, max);
 }
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
+/**
+ * Picks a random item from an array.
+ */
+const pickRandom = <T,>(arr: readonly T[]): T =>
+  arr[Math.floor(Math.random() * arr.length)];
 
-function randomServiceNumber() {
-  return `09${Math.floor(10000000 + Math.random() * 90000000)}`;
-}
+/**
+ * Random Ethio telecom service number (09xxxxxxxx)
+ */
+const randomServiceNumber = (): string =>
+  `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 
 // --------------------------------------------------
 // POST: Seed Tickets
 // --------------------------------------------------
+
 export async function POST() {
   try {
-    const users = await prisma.user.findMany();
-    if (users.length === 0) {
+    const users: User[] = await prisma.user.findMany();
+
+    if (!users.length) {
       return NextResponse.json(
-        { error: "No users found. Seed users first." },
+        { error: "No users found. Please seed users first." },
         { status: 400 }
       );
     }
 
-    const tickets: any[] = [];
-
-    for (let i = 0; i < TICKET_COUNT; i++) {
+    const tickets = Array.from({ length: TICKET_COUNT }).map(() => {
       const createdAt = randomCreatedAt();
 
       const createdByUser = pickRandom(users);
       const handlerUser = pickRandom(users);
 
-      // Random status
-      const randomStatus = Math.random();
+      // Random ticket status
+      const r = Math.random();
+
       let status: TicketStatus = TicketStatus.Pending;
       let resolvedAt: Date | null = null;
       let pending_endAt: Date | null = null;
 
-      if (randomStatus < 0.3) {
-        // 30% resolved
+      if (r < 0.3) {
+        // Resolved
         status = TicketStatus.Resolved;
 
-        // resolvedAt AFTER createdAt (1–5 days)
         resolvedAt = randomDateBetween(
           createdAt,
           new Date(createdAt.getTime() + 5 * 24 * 60 * 60 * 1000)
         );
-      } else if (randomStatus < 0.6) {
-        // 30% in progress
+      } else if (r < 0.6) {
+        // In progress
         status = TicketStatus.In_Progress;
       } else {
-        // 40% pending
+        // Pending
         status = TicketStatus.Pending;
 
-        // pending_endAt AFTER createdAt (1–10 days)
         pending_endAt = randomDateBetween(
           createdAt,
           new Date(createdAt.getTime() + 10 * 24 * 60 * 60 * 1000)
         );
       }
 
-      tickets.push({
+      return {
         serviceNumber: randomServiceNumber(),
         tasksClassification: pickRandom(Object.values(TaskClassification)),
         requestType: pickRandom(Object.values(RequestType)),
@@ -109,8 +116,8 @@ export async function POST() {
 
         createdById: createdByUser.id,
         handlerId: handlerUser.id,
-      });
-    }
+      };
+    });
 
     const result = await prisma.troubleTicket.createMany({
       data: tickets,
@@ -118,13 +125,17 @@ export async function POST() {
     });
 
     return NextResponse.json(
-      { message: "Ticket seeding complete", total: result.count },
+      {
+        message: "Ticket seeding complete.",
+        total: result.count,
+      },
       { status: 201 }
     );
   } catch (error) {
     console.error("Ticket Seed Error:", error);
+
     return NextResponse.json(
-      { error: "Seeding error, check server logs" },
+      { error: "Seeding error, check server logs." },
       { status: 500 }
     );
   }
