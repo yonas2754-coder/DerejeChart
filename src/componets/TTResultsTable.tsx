@@ -214,7 +214,32 @@ const useStyles = makeStyles({
         display: 'flex', 
         flexDirection: 'column', 
     },
-    toolbar: { display: "flex", gap: "12px", marginBottom: "20px", alignItems: "center", },
+    
+    // --- UPDATED TOOLBAR STYLING FOR MOBILE ---
+    toolbar: { 
+        display: "flex", 
+        gap: "12px", 
+        marginBottom: "20px", 
+        alignItems: "center", 
+        // Apply vertical stacking and full width below 768px (Mobile View)
+        '@media (max-width: 768px)': {
+            flexDirection: 'column', // Stack children vertically
+            alignItems: 'stretch',   // Make children take full width
+            gap: '8px',              // Slightly smaller gap for mobile
+        },
+    },
+    
+    // New class for elements within the toolbar to ensure they go full width on mobile
+    toolbarChild: {
+        '@media (max-width: 768px)': {
+            width: '100% !important',
+            minWidth: 'unset !important',
+            // Also ensure toolbar buttons and dropdowns look good when stretched:
+            justifyContent: 'center', 
+        },
+    },
+    // --- END UPDATED TOOLBAR STYLING ---
+
     tableCard: { 
         ...shorthands.padding("0px"), 
         backgroundColor: tokens.colorNeutralBackground1, 
@@ -560,6 +585,7 @@ export default function TTResultsPage() {
                 <SearchBox
                     placeholder="Filter service number, handler, or task..."
                     onChange={(_, data) => setSearchText(data.value)}
+                    className={styles.toolbarChild} // Added class for mobile full width
                     style={{ width: "300px" }}
                     aria-label="Search tickets"
                 />
@@ -568,6 +594,7 @@ export default function TTResultsPage() {
                     placeholder="Filter by Zone"
                     value={filterZone}
                     onOptionSelect={(_, data) => setFilterZone(data.optionText || "All")}
+                    className={styles.toolbarChild} // Added class for mobile full width
                     style={{ minWidth: "180px" }}
                     aria-label="Filter by Zone"
                 >
@@ -576,7 +603,7 @@ export default function TTResultsPage() {
 
                 <Popover openOnHover>
                     <PopoverTrigger disableButtonEnhancement>
-                        <ToolbarButton icon={<Filter20Regular />} aria-label="More Filters">
+                        <ToolbarButton icon={<Filter20Regular />} aria-label="More Filters" className={styles.toolbarChild}> {/* Added class */}
                             More Filters
                         </ToolbarButton>
                     </PopoverTrigger>
@@ -590,6 +617,7 @@ export default function TTResultsPage() {
                     onClick={() => refetch()} 
                     disabled={isLoading}
                     aria-label="Refresh Data"
+                    className={styles.toolbarChild} // Added class for mobile full width
                 >
                     Refresh
                 </ToolbarButton>
@@ -600,6 +628,7 @@ export default function TTResultsPage() {
                     onClick={handleExport}
                     disabled={sorted.length === 0}
                     aria-label="Export filtered data to CSV"
+                    className={styles.toolbarChild} // Added class for mobile full width
                 >
                     Export to CSV ({sorted.length})
                 </ToolbarButton>
@@ -609,40 +638,37 @@ export default function TTResultsPage() {
             {selectedTicketIds.size > 0 && (
                 <div className={styles.batchActionBar}>
                     <span style={{ fontSize: tokens.fontSizeBase300, opacity: 0.9, fontWeight: tokens.fontWeightSemibold }}>
-                        **{selectedTicketIds.size} tickets selected:**
+                        **{selectedTicketIds.size}** selected.
                     </span>
-                    {isUpdating && <Spinner size="extra-tiny" />}
-                    
-                    {actionableTickets.pendingToStart.length > 0 && (
-                        <Button 
-                            appearance="primary" icon={<ArrowSyncCheckmark20Regular />}
-                            onClick={() => handleBatchAction("In-Progress")} disabled={isUpdating}
-                        >
-                            Start Work ({actionableTickets.pendingToStart.length})
-                        </Button>
-                    )}
-                    
-                    {actionableTickets.inProgressToResolve.length > 0 && (
-                        <Button 
-                            appearance="secondary" icon={<CheckmarkCircle20Regular />}
-                            onClick={() => handleBatchAction("Resolved")} disabled={isUpdating}
-                        >
-                            Mark Resolve ({actionableTickets.inProgressToResolve.length})
-                        </Button>
-                    )}
                     <Button 
-                        appearance="subtle" 
+                        appearance="secondary"
+                        icon={<ArrowSyncCheckmark20Regular />}
+                        disabled={actionableTickets.pendingToStart.length === 0 || isUpdating}
+                        onClick={() => handleBatchAction("In-Progress")}
+                    >
+                        Batch Start ({actionableTickets.pendingToStart.length})
+                    </Button>
+                    <Button
+                        appearance="primary"
+                        icon={<CheckmarkCircle20Regular />}
+                        disabled={actionableTickets.inProgressToResolve.length === 0 || isUpdating}
+                        onClick={() => handleBatchAction("Resolved")}
+                    >
+                        Batch Resolve ({actionableTickets.inProgressToResolve.length})
+                    </Button>
+                    <Button 
+                        appearance="subtle"
                         onClick={() => setSelectedTicketIds(new Set())}
-                        disabled={isUpdating}
                     >
                         Clear Selection
                     </Button>
+                    {isUpdating && <Spinner size="tiny" label="Updating..." />}
                 </div>
             )}
-            
-            {/* --- TABLE CONTAINER --- */}
+
+
             <div className={styles.tableCard}>
-                <TTResultsTable 
+                <TTResultsTable
                     pageData={pageData}
                     columns={columns}
                     styles={styles}
@@ -654,36 +680,35 @@ export default function TTResultsPage() {
                     sortDirection={sortDirection}
                     handleSort={handleSort}
                     handleSelectAll={handleSelectAll}
-                    handleSelectTicket={handleSelectTicket} 
+                    handleSelectTicket={handleSelectTicket}
                     handleStatusChange={handleStatusChange}
                     singleTicketMutation={singleTicketMutation}
                 />
             </div>
 
-            {/* --- PAGINATION SECTION --- */}
-            {sorted.length > 0 && (
-                <div className={styles.pagination}>
-                    <Subtitle2 style={{ marginRight: '20px' }}>
-                        Showing **{(currentPage - 1) * PAGE_SIZE + 1}** - **{Math.min(currentPage * PAGE_SIZE, sorted.length)}** of **{sorted.length}** results
-                    </Subtitle2>
-                    <Button disabled={currentPage === 1 || isUpdating} onClick={() => goToPage(currentPage - 1)}>Previous</Button>
-                    {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1).slice(
-                        Math.max(0, currentPage - 3), 
-                        Math.min(totalPages, currentPage + 2)
-                    ).map((page) => (
-                        <Button
-                            key={page}
-                            appearance={page === currentPage ? "primary" : "secondary"}
-                            onClick={() => goToPage(page)}
-                            disabled={isUpdating}
-                        >
-                            {page}
-                        </Button>
-                    ))}
-                    {totalPages > 5 && currentPage < totalPages - 2 && <span>...</span>}
-                    <Button disabled={currentPage === totalPages || isUpdating} onClick={() => goToPage(currentPage + 1)}>Next</Button>
-                </div>
-            )}
+            {/* --- PAGINATION --- */}
+            <div className={styles.pagination}>
+                <Button 
+                    appearance="subtle" 
+                    disabled={currentPage === 1}
+                    onClick={() => goToPage(currentPage - 1)}
+                >
+                    Previous
+                </Button>
+                <span style={{ fontWeight: tokens.fontWeightSemibold }}>
+                    Page {currentPage} of {totalPages}
+                </span>
+                <Button 
+                    appearance="subtle" 
+                    disabled={currentPage === totalPages}
+                    onClick={() => goToPage(currentPage + 1)}
+                >
+                    Next
+                </Button>
+                <span style={{ marginLeft: '12px' }}>
+                    Showing **{pageData.length}** tickets (Total filtered: **{sorted.length}**)
+                </span>
+            </div>
         </div>
     );
 }
