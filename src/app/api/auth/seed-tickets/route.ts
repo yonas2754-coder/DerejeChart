@@ -9,44 +9,39 @@ import {
   TicketStatus,
 } from "@prisma/client";
 
+// Number of tickets to generate
 const TICKET_COUNT = 50;
 
-// --------------------------------------------------
-// HELPERS
-// --------------------------------------------------
+// ----------------------------------------------
+// RANDOM HELPERS
+// ----------------------------------------------
 
-// Strict random date generator between 2 dates
-function randomDateBetween(min: Date, max: Date): Date {
-  return new Date(min.getTime() + Math.random() * (max.getTime() - min.getTime()));
-}
-
-// Random createdAt between last 60 days → next 7 days
-function randomCreatedAt() {
+// Random date within last 60 days
+function randomDateLast60Days(): Date {
   const now = new Date();
-
-  const past = new Date(now);
+  const past = new Date();
   past.setDate(now.getDate() - 60);
 
-  const future = new Date(now);
-  future.setDate(now.getDate() + 7);
-
-  return randomDateBetween(past, future);
+  return new Date(
+    past.getTime() + Math.random() * (now.getTime() - past.getTime())
+  );
 }
 
-function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+// Random picker for enum values
+function pickRandom<T>(values: T[]): T {
+  return values[Math.floor(Math.random() * values.length)];
 }
 
+// Random Ethiopian 09 phone number
 function randomServiceNumber() {
   return `09${Math.floor(10000000 + Math.random() * 90000000)}`;
 }
 
-// --------------------------------------------------
-// POST: Seed Tickets
-// --------------------------------------------------
 export async function POST() {
   try {
+    // Load all users (seed users must exist)
     const users = await prisma.user.findMany();
+
     if (users.length === 0) {
       return NextResponse.json(
         { error: "No users found. Seed users first." },
@@ -57,38 +52,27 @@ export async function POST() {
     const tickets: any[] = [];
 
     for (let i = 0; i < TICKET_COUNT; i++) {
-      const createdAt = randomCreatedAt();
+      // Always generate a createdAt within last 60 days
+      const createdAt = randomDateLast60Days();
 
+      // Always assign a createdBy user
       const createdByUser = pickRandom(users);
+
+      // Always assign a handler (100%)
       const handlerUser = pickRandom(users);
 
-      // Random status
-      const randomStatus = Math.random();
+      // Random status logic
+      const statusChance = Math.random();
       let status: TicketStatus = TicketStatus.Pending;
       let resolvedAt: Date | null = null;
-      let pending_endAt: Date | null = null;
 
-      if (randomStatus < 0.3) {
-        // 30% resolved
+      if (statusChance < 0.30) {
         status = TicketStatus.Resolved;
-
-        // resolvedAt AFTER createdAt (1–5 days)
-        resolvedAt = randomDateBetween(
-          createdAt,
-          new Date(createdAt.getTime() + 5 * 24 * 60 * 60 * 1000)
+        resolvedAt = new Date(
+          createdAt.getTime() + Math.random() * (5 * 24 * 60 * 60 * 1000)
         );
-      } else if (randomStatus < 0.6) {
-        // 30% in progress
+      } else if (statusChance < 0.60) {
         status = TicketStatus.In_Progress;
-      } else {
-        // 40% pending
-        status = TicketStatus.Pending;
-
-        // pending_endAt AFTER createdAt (1–10 days)
-        pending_endAt = randomDateBetween(
-          createdAt,
-          new Date(createdAt.getTime() + 10 * 24 * 60 * 60 * 1000)
-        );
       }
 
       tickets.push({
@@ -97,18 +81,24 @@ export async function POST() {
         requestType: pickRandom(Object.values(RequestType)),
         specificRequestType: pickRandom(Object.values(SpecificRequestType)),
         zone: pickRandom(Object.values(Zone)),
-        priority: pickRandom(Object.values(Priority)),
         remarks: "Auto-generated test ticket",
-
+        priority: pickRandom(Object.values(Priority)),
         status,
-        pending_endAt,
-        resolvedAt,
 
+        pending_endAt:
+          status === TicketStatus.Pending
+            ? new Date(
+                createdAt.getTime() +
+                  Math.random() * (10 * 24 * 60 * 60 * 1000)
+              )
+            : null,
+
+        resolvedAt,
         createdAt,
         updatedAt: new Date(),
 
         createdById: createdByUser.id,
-        handlerId: handlerUser.id,
+        handlerId: handlerUser.id, // ALWAYS has a handler
       });
     }
 
@@ -118,7 +108,10 @@ export async function POST() {
     });
 
     return NextResponse.json(
-      { message: "Ticket seeding complete", total: result.count },
+      {
+        message: "Ticket seeding complete",
+        total: result.count,
+      },
       { status: 201 }
     );
   } catch (error) {

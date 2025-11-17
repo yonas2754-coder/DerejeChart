@@ -53,8 +53,8 @@ model TroubleTicket {
   createdById           String?
   createdBy             User?                 @relation("CreatedTickets", fields: [createdById], references: [id])
 
-  handlerId             String?
-  handler               User?                 @relation("HandledTickets", fields: [handlerId], references: [id])
+  handlerId             String
+  handler               User                 @relation("HandledTickets", fields: [handlerId], references: [id])
 }
 
 // --------------------------------------------------------------------
