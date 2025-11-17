@@ -2,7 +2,7 @@
 
 import * as React from "react";
 // Assuming these imports correctly point to your custom hooks and utilities
-import { useTickets, useUpdateTicketStatus, useBatchUpdateTicketStatus } from '@/hooks/useTickets'; 
+import { useTickets, useUpdateTicketStatus, useBatchUpdateTicketStatus } from '@/hooks/useTickets';
 import { SpecificRequestTypeMap } from '@/utils/specificRequestTypeMap'; 
 import {
     Table, TableHeader, TableHeaderCell, TableBody, TableRow, TableCell, TableCellLayout,
@@ -19,7 +19,7 @@ import {
 
 // --- TYPE & CONSTANTS ---
 type PriorityType = string;
-type LocalTicketStatus = "Resolved" | "Pending" | "In-Progress"; 
+type LocalTicketStatus = "Resolved" | "Pending" | "In-Progress";
 type SortableColumn = 
     | 'id' | 'zone' | 'serviceNumber' | 'tasksClassification' | 'requestType' 
     | 'specificRequestType' | 'priority' | 'status' | 'duration' 
@@ -37,10 +37,10 @@ export interface ITicket {
 interface UpdateTicketInput {
     id: string;
     newStatus: LocalTicketStatus;
-    remarks?: string; 
+    remarks?: string;
 }
 
-const MOCK_CURRENT_USER = { name: "Clicker User", id: "user_clicker_id" }; 
+const MOCK_CURRENT_USER = { name: "Clicker User", id: "user_clicker_id" };
 const allZones: string[] = [
     "All", "EAAZ", "CAAZ", "SAAZ", "NAAZ", "SWAAZ", "WAAZ", "NR Mekele", 
     "NWR Bahirdar", "ER Dire Dawa", "CER Harar", "CNR D Birhan", 
@@ -54,7 +54,7 @@ const PAGE_SIZE = 15;
 const msToHhMm = (diffMs: number): string => { 
     if (diffMs < 0 || isNaN(diffMs) || diffMs === Infinity) return "00:00"; 
     const totalSeconds = Math.floor(diffMs / 1000); 
-    const hours = Math.floor(totalSeconds / 3600);
+    const hours = Math.floor((totalSeconds / 3600));
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
 };
@@ -215,6 +215,15 @@ const useStyles = makeStyles({
         flexDirection: 'column', 
     },
     
+    // NEW CLASS FOR CENTERING SPINNER
+    centeredSpinner: { 
+        minHeight: "100vh", 
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexDirection: 'column',
+    },
+
     // --- UPDATED TOOLBAR STYLING FOR MOBILE ---
     toolbar: { 
         display: "flex", 
@@ -279,6 +288,7 @@ const useStyles = makeStyles({
     tableCellLayout: { width: '100%', display: 'flex', alignItems: 'center' },
 
     zeroState: { ...shorthands.padding("40px"), textAlign: 'center', color: tokens.colorNeutralForeground2, },
+    // Re-defined pagination style for the new button layout
     pagination: { display: 'flex', gap: '8px', justifyContent: 'center', alignItems: 'center', marginTop: '12px', flexWrap: 'wrap', },
     headerArea: { marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '6px', },
 });
@@ -562,7 +572,12 @@ export default function TTResultsPage() {
 
     // --- RENDERING ---
     if (isLoading) {
-        return <div className={styles.pageWrapper}><Spinner size="large" label="Loading data from the server..." /></div>;
+        return (
+            // Use the centeredSpinner class to center the spinner
+            <div className={styles.centeredSpinner}> 
+                <Spinner size="large" label="Loading data from the server..." />
+            </div>
+        );
     }
 
     if (isError) {
@@ -603,7 +618,7 @@ export default function TTResultsPage() {
 
                 <Popover openOnHover>
                     <PopoverTrigger disableButtonEnhancement>
-                        <ToolbarButton icon={<Filter20Regular />} aria-label="More Filters" className={styles.toolbarChild}> {/* Added class */}
+                        <ToolbarButton icon={<Filter20Regular />} aria-label="More Filters" className={styles.toolbarChild}>
                             More Filters
                         </ToolbarButton>
                     </PopoverTrigger>
@@ -634,44 +649,41 @@ export default function TTResultsPage() {
                 </ToolbarButton>
             </Toolbar>
 
-                      {/* --- BATCH ACTION BAR --- */}
+            {/* --- BATCH ACTION BAR --- */}
             {selectedTicketIds.size > 0 && (
                 <div className={styles.batchActionBar}>
                     <span style={{ fontSize: tokens.fontSizeBase300, opacity: 0.9, fontWeight: tokens.fontWeightSemibold }}>
-                        **{selectedTicketIds.size} tickets selected:**
+                        **{selectedTicketIds.size} selected.**
                     </span>
-                    {isUpdating && <Spinner size="extra-tiny" />}
-                    
-                    {actionableTickets.pendingToStart.length > 0 && (
-                        <Button 
-                            appearance="primary" icon={<ArrowSyncCheckmark20Regular />}
-                            onClick={() => handleBatchAction("In-Progress")} disabled={isUpdating}
-                        >
-                            Start Work ({actionableTickets.pendingToStart.length})
-                        </Button>
-                    )}
-                    
-                    {actionableTickets.inProgressToResolve.length > 0 && (
-                        <Button 
-                            appearance="secondary" icon={<CheckmarkCircle20Regular />}
-                            onClick={() => handleBatchAction("Resolved")} disabled={isUpdating}
-                        >
-                            Mark Resolve ({actionableTickets.inProgressToResolve.length})
-                        </Button>
-                    )}
                     <Button 
-                        appearance="subtle" 
+                        appearance="secondary"
+                        icon={<ArrowSyncCheckmark20Regular />}
+                        disabled={actionableTickets.pendingToStart.length === 0 || isUpdating}
+                        onClick={() => handleBatchAction("In-Progress")}
+                    >
+                        Batch Start ({actionableTickets.pendingToStart.length})
+                    </Button>
+                    <Button
+                        appearance="primary"
+                        icon={<CheckmarkCircle20Regular />}
+                        disabled={actionableTickets.inProgressToResolve.length === 0 || isUpdating}
+                        onClick={() => handleBatchAction("Resolved")}
+                    >
+                        Batch Resolve ({actionableTickets.inProgressToResolve.length})
+                    </Button>
+                    <Button 
+                        appearance="subtle"
                         onClick={() => setSelectedTicketIds(new Set())}
-                        disabled={isUpdating}
                     >
                         Clear Selection
                     </Button>
+                    {isUpdating && <Spinner size="tiny" label="Updating..." />}
                 </div>
             )}
-            
-            {/* --- TABLE CONTAINER --- */}
+
+
             <div className={styles.tableCard}>
-                <TTResultsTable 
+                <TTResultsTable
                     pageData={pageData}
                     columns={columns}
                     styles={styles}
@@ -683,21 +695,29 @@ export default function TTResultsPage() {
                     sortDirection={sortDirection}
                     handleSort={handleSort}
                     handleSelectAll={handleSelectAll}
-                    handleSelectTicket={handleSelectTicket} 
+                    handleSelectTicket={handleSelectTicket}
                     handleStatusChange={handleStatusChange}
                     singleTicketMutation={singleTicketMutation}
                 />
             </div>
 
-            {/* --- PAGINATION SECTION --- */}
+            {/* --- PAGINATION SECTION (Updated Style) --- */}
             {sorted.length > 0 && (
                 <div className={styles.pagination}>
                     <Subtitle2 style={{ marginRight: '20px' }}>
                         Showing **{(currentPage - 1) * PAGE_SIZE + 1}** - **{Math.min(currentPage * PAGE_SIZE, sorted.length)}** of **{sorted.length}** results
                     </Subtitle2>
-                    <Button disabled={currentPage === 1 || isUpdating} onClick={() => goToPage(currentPage - 1)}>Previous</Button>
+                    <Button 
+                        appearance="secondary"
+                        disabled={currentPage === 1 || isUpdating} 
+                        onClick={() => goToPage(currentPage - 1)}
+                    >
+                        Previous
+                    </Button>
                     {totalPages > 1 && Array.from({ length: totalPages }, (_, i) => i + 1).slice(
+                        // Determine the start index, showing up to 2 pages before the current one
                         Math.max(0, currentPage - 3), 
+                        // Determine the end index, showing up to 2 pages after the current one
                         Math.min(totalPages, currentPage + 2)
                     ).map((page) => (
                         <Button
@@ -709,8 +729,15 @@ export default function TTResultsPage() {
                             {page}
                         </Button>
                     ))}
+                    {/* Add ellipsis if there are more than 5 pages total and we are not near the end */}
                     {totalPages > 5 && currentPage < totalPages - 2 && <span>...</span>}
-                    <Button disabled={currentPage === totalPages || isUpdating} onClick={() => goToPage(currentPage + 1)}>Next</Button>
+                    <Button 
+                        appearance="secondary"
+                        disabled={currentPage === totalPages || isUpdating} 
+                        onClick={() => goToPage(currentPage + 1)}
+                    >
+                        Next
+                    </Button>
                 </div>
             )}
         </div>
