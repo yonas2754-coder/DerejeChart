@@ -1,7 +1,7 @@
 // src/data/data.ts
 
 import prisma from '~/prisma/client';
-import { format, startOfWeek, endOfWeek, subWeeks, startOfDay, endOfDay, subDays } from 'date-fns';
+import { format, startOfWeek, endOfWeek, subWeeks, startOfDay, subDays, addDays } from 'date-fns'; // <-- CRITICAL: Imported addDays
 import { ChartData } from 'chart.js';
 import { 
     TaskClassification, 
@@ -47,16 +47,17 @@ const COLORS = {
 };
 
 // =======================================================
-// 2. Database Query Function
+// 2. Database Query Function (FIXED)
 // =======================================================
 
-async function fetchTasks(startDate: Date, endDate: Date, type?: TaskType): Promise<TroubleTicketRecord[]> {
+// FIX 1: Renamed endDate to endDateExclusive and changed 'lte' to 'lt'
+async function fetchTasks(startDate: Date, endDateExclusive: Date, type?: TaskType): Promise<TroubleTicketRecord[]> {
     
     const queryResult = await prisma.troubleTicket.findMany({
         where: {
             createdAt: {
                 gte: startDate,
-                lte: endDate,
+                lt: endDateExclusive, // <-- THE CRITICAL FIX: Use 'lt' (less than)
             },
             ...(type && { tasksClassification: type }), 
         },
@@ -72,7 +73,7 @@ async function fetchTasks(startDate: Date, endDate: Date, type?: TaskType): Prom
 
 
 // =======================================================
-// 3. Calculation Functions
+// 3. Calculation Functions (UPDATED FOR TIMEZONE SAFETY)
 // =======================================================
 
 // --- A. Weekly Trend Comparison ---
@@ -86,15 +87,18 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
 
     const anchorDate = new Date(); 
     const currentWeekStart = startOfWeek(anchorDate, { weekStartsOn: 1 });
-    const currentWeekEnd = endOfWeek(anchorDate, { weekStartsOn: 1 });
-    const chartDataStart = startOfWeek(subWeeks(anchorDate, numWeeks - 1), { weekStartsOn: 1 });
+    // The end of the current week must be exclusive (start of the next week)
+    const chartDataEndExclusive = startOfWeek(addDays(anchorDate, 7), { weekStartsOn: 1 }); // Next week's start
+    
+    const chartDataStart = startOfWeek(subWeeks(currentWeekStart, numWeeks - 1), { weekStartsOn: 1 });
 
     const labels: string[] = [];
     for (let i = numWeeks - 1; i >= 0; i--) {
         labels.push(format(subWeeks(currentWeekStart, i), 'MMM dd')); 
     }
     
-    const allTasks = await fetchTasks(chartDataStart, currentWeekEnd);
+    // Fetch all tasks for the entire period using the new exclusive boundary
+    const allTasks = await fetchTasks(chartDataStart, chartDataEndExclusive); 
 
     for (const type of taskTypes) {
         const typeTasks = allTasks.filter(t => t.tasksClassification === type);
@@ -103,11 +107,12 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
 
         for (let i = numWeeks - 1; i >= 0; i--) {
             const weekStart = startOfWeek(subWeeks(currentWeekStart, i), { weekStartsOn: 1 });
-            const weekEnd = endOfWeek(subWeeks(currentWeekStart, i), { weekStartsOn: 1 });
+            // Define the end as the start of the next week (exclusive boundary)
+            const weekEndExclusive = startOfWeek(addDays(subWeeks(currentWeekStart, i), 7), { weekStartsOn: 1 }); 
 
             const count = typeTasks.filter(t => 
                 t.createdAt.getTime() >= weekStart.getTime() && 
-                t.createdAt.getTime() <= weekEnd.getTime()
+                t.createdAt.getTime() < weekEndExclusive.getTime() // FIX: Use '<' for internal filter
             ).length;
 
             dataPoints.push(count);
@@ -117,6 +122,7 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
             }
         }
         
+        // ... rest of percentage calculation logic remains the same
         const currentWeekTotal = dataPoints[dataPoints.length - 1] || 0;
         const priorWeeksCount = numWeeks - 1;
         const priorAverage = priorWeeksCount > 0 ? totalPriorWeeks / priorWeeksCount : 0;
@@ -151,12 +157,12 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
 }
 
 // --- B. Handler Performance ---
-export async function getFilteredHandlerPerformanceData(startDate: Date, endDate: Date): Promise<ChartData<"bar"> & { options: any }> {
-    const allTasks = await fetchTasks(startDate, endDate);
-
+// FIX 2: Updated signature and passed to fetchTasks
+export async function getFilteredHandlerPerformanceData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar"> & { options: any }> {
+    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    
     const handlerMap = allTasks.reduce((acc, task) => {
         const handlerName = task.handler?.name || 'Unassigned';
-        
         // Determine the task status for charting
         const isCompleted = task.status === 'Resolved';
         const isInProgress = task.status === 'In_Progress'; // Assuming your Prisma enum has 'In-Progress'
@@ -200,8 +206,10 @@ export async function getFilteredHandlerPerformanceData(startDate: Date, endDate
 }
 
 // --- C. Zonal Task Data ---
-export async function getFilteredZonalTaskData(startDate: Date, endDate: Date): Promise<ChartData<"bar">> {
-    const allTasks = await fetchTasks(startDate, endDate);
+// FIX 2: Updated signature and passed to fetchTasks
+export async function getFilteredZonalTaskData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar">> {
+    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
+    
     const allZones = Array.from(new Set(allTasks.map(t => t.zone))).filter(Boolean).sort(); 
     const taskTypes: TaskType[] = [TaskClassification.Provisioning, TaskClassification.Maintenance, TaskClassification.Others];
 
@@ -234,10 +242,9 @@ export async function getFilteredZonalTaskData(startDate: Date, endDate: Date): 
 }
 
 // --- D. Task Classification Distribution (Doughnut) ---
-export async function getTaskDistributionData(selectedDate: Date): Promise<ChartData<"doughnut">> {
-    const startDate = startOfDay(selectedDate);
-    const endDate = endOfDay(selectedDate);
-    const allTasks = await fetchTasks(startDate, endDate);
+// FIX 3: Updated signature and passed to fetchTasks
+export async function getTaskDistributionData(startDate: Date, endDateExclusive: Date): Promise<ChartData<"doughnut">> {
+    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
     const taskTypes: TaskType[] = [TaskClassification.Provisioning, TaskClassification.Maintenance, TaskClassification.Others];
 
     const counts = taskTypes.map(type => 
@@ -256,24 +263,34 @@ export async function getTaskDistributionData(selectedDate: Date): Promise<Chart
 
 // --- E. Historical Daily Task Volume (Line) ---
 export async function getTaskHistoryData(anchorDate: Date, days: number = 7): Promise<ChartData<"line">> {
-    const endDate = endOfDay(anchorDate); 
-    const startDate = startOfDay(subDays(endDate, days - 1));
+    
+    // Calculate the exclusive end boundary: Start of the day AFTER the anchorDate
+    const anchorDayStart = startOfDay(anchorDate);
+    const endDateExclusive = addDays(anchorDayStart, 1); 
+    
+    // Calculate the inclusive start boundary: Start of the day 7 days before the exclusive end
+    const startDate = subDays(endDateExclusive, days);
 
-    const allTasks = await fetchTasks(startDate, endDate);
+    // Fetch tasks using the correct exclusive boundary
+    const allTasks = await fetchTasks(startDate, endDateExclusive); // fetchTasks now uses 'lt'
+    
+    // Logic for creating labels and dates for the chart
     const dates: Date[] = [];
     const labels: string[] = [];
     
+    // Dates are calculated from the anchorDate backwards to ensure the last day is correct
     for (let i = days - 1; i >= 0; i--) {
-        const date = subDays(endDate, i);
-        dates.push(startOfDay(date));
+        const date = subDays(anchorDayStart, i);
+        dates.push(date);
         labels.push(format(date, 'MMM d'));
     }
 
+    // FIX 4: Internal filtering logic must also use the exclusive boundary
     const dataPoints = dates.map(dayStart => {
-        const dayEnd = endOfDay(dayStart);
+        const dayEndExclusive = addDays(dayStart, 1); // Start of the next day
         return allTasks.filter(t => 
             t.createdAt.getTime() >= dayStart.getTime() && 
-            t.createdAt.getTime() <= dayEnd.getTime()
+            t.createdAt.getTime() < dayEndExclusive.getTime() // FIX: Use '<' for internal filter
         ).length;
     });
 
@@ -291,11 +308,9 @@ export async function getTaskHistoryData(anchorDate: Date, days: number = 7): Pr
 }
 
 // --- F. Specific Request Type Distribution (Bar) ---
-export async function getSpecificRequestTypeDistribution(selectedDate: Date): Promise<ChartData<"bar">> {
-    const startDate = startOfDay(selectedDate);
-    const endDate = endOfDay(selectedDate);
-    
-    const allTasks = await fetchTasks(startDate, endDate); 
+// FIX 3: Updated signature and passed to fetchTasks
+export async function getSpecificRequestTypeDistribution(startDate: Date, endDateExclusive: Date): Promise<ChartData<"bar">> {
+    const allTasks = await fetchTasks(startDate, endDateExclusive); // Uses fixed fetchTasks
     
     // Get all unique request types
     const allRequestTypes: SpecificRequestType[] = Array.from(new Set(allTasks.map(t => t.specificRequestType))).filter(Boolean).sort() as SpecificRequestType[];
@@ -310,7 +325,8 @@ export async function getSpecificRequestTypeDistribution(selectedDate: Date): Pr
         labels: allRequestTypes.map(label => {
             // Shorten long labels for better display on the chart
             if (label.length > 25) {
-                 return label.match(/[A-Z][a-z]+/g)?.join(' ') || label;
+                // Simplified shortening logic
+                return label.split(/[\s_-]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ').substring(0, 25) + '...';
             }
             return label;
         }),

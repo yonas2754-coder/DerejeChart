@@ -8,7 +8,7 @@ import {
     getTaskHistoryData,
     getSpecificRequestTypeDistribution 
 } from '@/data/data'; 
-import { parseISO, isValid, startOfDay, endOfDay, subDays } from 'date-fns';
+import { parseISO, isValid, startOfDay, subDays, addDays } from 'date-fns'; // <-- CRITICAL: Imported addDays
 
 /**
  * Handles GET requests to /api/dashboard/date-dependent
@@ -21,7 +21,8 @@ export async function GET(request: NextRequest) {
     const DEFAULT_DATE = subDays(new Date(), 1); 
 
     if (!dateParam) {
-        selectedDate = DEFAULT_DATE; 
+        // Use startOfDay to ensure a clean date object
+        selectedDate = startOfDay(DEFAULT_DATE); 
     } else {
         const parsedDate = parseISO(dateParam);
         if (!isValid(parsedDate)) {
@@ -30,20 +31,33 @@ export async function GET(request: NextRequest) {
                 success: false,
             }, { status: 400 });
         }
-        selectedDate = parsedDate;
+        // Use startOfDay to handle the date consistently at 00:00:00 UTC
+        selectedDate = startOfDay(parsedDate);
     }
 
     try {
-        const singleDayStart = startOfDay(selectedDate);
-        const singleDayEnd = endOfDay(selectedDate);
+        // --- FIX: Define the query range using the start of the next day ---
+        
+        // 1. singleDayStart (Inclusive boundary: >=)
+        const singleDayStart = selectedDate; 
+        
+        // 2. singleDayEndExclusive (Exclusive boundary: <)
+        // This is the start of the next day (e.g., Nov 18 00:00:00 UTC)
+        const singleDayEndExclusive = addDays(singleDayStart, 1); 
 
         // --- Fetch all necessary date-dependent data ---
-        const handlerPerformance = await getFilteredHandlerPerformanceData(singleDayStart, singleDayEnd);
-        const zonalTasks = await getFilteredZonalTaskData(singleDayStart, singleDayEnd);
-        const distribution = await getTaskDistributionData(selectedDate);
-        const taskHistory = await getTaskHistoryData(selectedDate); 
-        const specificRequests = await getSpecificRequestTypeDistribution(selectedDate); 
+        // CRITICAL: Update all calls to pass (singleDayStart, singleDayEndExclusive)
 
+        const handlerPerformance = await getFilteredHandlerPerformanceData(singleDayStart, singleDayEndExclusive);
+        const zonalTasks = await getFilteredZonalTaskData(singleDayStart, singleDayEndExclusive);
+        
+        // Updated signatures:
+        const distribution = await getTaskDistributionData(singleDayStart, singleDayEndExclusive);
+        const specificRequests = await getSpecificRequestTypeDistribution(singleDayStart, singleDayEndExclusive); 
+
+        // taskHistory only needs the anchor date as it calculates its 7-day range internally:
+        const taskHistory = await getTaskHistoryData(selectedDate); 
+        
         // --- Return the aggregated data ---
         return NextResponse.json({
             handlerPerformance: handlerPerformance,
