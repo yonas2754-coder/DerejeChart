@@ -8,7 +8,7 @@ import {
     Field, Spinner,
 } from "@fluentui/react-components";
 import { DatePicker } from "@fluentui/react-datepicker-compat"; 
-import { Bar, Doughnut, Line, ChartProps } from "react-chartjs-2"; // Added ChartProps for completeness
+import { Bar, Doughnut, Line, ChartProps } from "react-chartjs-2"; 
 import { 
     Chart as ChartJS, CategoryScale, LinearScale, 
     BarElement, Title, Tooltip, Legend, ArcElement, 
@@ -215,6 +215,10 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
     const handleDownload = () => {
         downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
     };
+    
+    // FIX: Calculate suggestedMax for Y-axis (value axis) to provide space for top labels.
+    const maxDataValue = Math.max(...chartData.datasets[0].data as number[]);
+    const suggestedMax = maxDataValue * 1.15; // Add 15% buffer to clear top data labels
 
     const chartOptions: ChartOptions<"bar"> = {
         responsive: true,
@@ -286,7 +290,11 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         },
         scales: {
             x: { title: { display: true, text: 'Week' }, grid: { display: false } },
-            y: { title: { display: true, text: 'Total Task Count' }, min: 0 }
+            y: { 
+                title: { display: true, text: 'Total Task Count' }, 
+                min: 0,
+                suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+            }
         },
     };
     
@@ -336,6 +344,12 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
         datasets: updatedDatasets
     };
 
+    // FIX: Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
+    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
+    // Get max of all individual data points for a generous buffer in stacked bar total
+    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    const suggestedMax = maxDataValue * 1.20; // Add 20% buffer
+
     return (
         <Card className={styles.chartCard}>
             <CardHeader header={<div className={styles.cardHeaderWithAction}>
@@ -350,7 +364,10 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
                         title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     },
                     scales: { 
-                        x: { stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' } }, 
+                        x: { 
+                            stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' },
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for right-side clearance
+                        }, 
                         y: { stacked: true, grid: { display: false } } 
                     }
                 }}/>
@@ -376,6 +393,11 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
         datasets: updatedDatasets
     };
 
+    // FIX: Calculate suggestedMax for Y-axis (value axis)
+    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
+    const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
+    const suggestedMax = maxDataValue * 1.15; // Add 15% buffer for top label clearance
+
 
     return (
         <Card className={styles.chartCard}>
@@ -387,7 +409,15 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
                 <Bar ref={chartRef} data={updatedChartData} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                    },
+                    scales: { // FIX: Added explicit scales object
+                        x: { title: { display: true, text: 'Zone/Region' } },
+                        y: {
+                            title: { display: true, text: 'Task Count' },
+                            min: 0,
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                        }
                     } 
                 }} />
             </ChartWrapper>
@@ -411,7 +441,7 @@ const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate
                 <Doughnut ref={chartRef} data={data.distribution} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                                    title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
                     }
                 }} />
             </ChartWrapper>
@@ -481,6 +511,12 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
         
     }, [data.specificRequests]);
 
+    // Determine the maximum value for suggestedMax
+    const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
+    const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
+    // Add a 15% buffer to the maximum value to ensure datalabels are not clipped
+    const suggestedMax = maxDataValue * 1.15; 
+
 
     return (
         // Use the doubleHeightCard style
@@ -525,6 +561,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                             title: { display: true, text: 'Number of Tasks' }, 
                             min: 0,
                             stacked: true, // Stacks the scale
+                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
                         } 
                     }
                 }} />
