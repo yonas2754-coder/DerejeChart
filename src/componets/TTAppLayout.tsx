@@ -138,10 +138,10 @@ const useStyles = makeStyles({
         },
     },
     drawerActive: {
-        backgroundColor: tokens.colorBrandBackgroundSelected,
+        backgroundColor: "#BCDD8D",
         color: tokens.colorNeutralForegroundOnBrand,
         ':hover': {
-            backgroundColor: tokens.colorBrandBackgroundSelected, // keep same color on hover when active
+            backgroundColor:'#8DC63F', // keep same color on hover when active
         },
     },
 });
