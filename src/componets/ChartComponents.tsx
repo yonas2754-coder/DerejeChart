@@ -217,7 +217,6 @@ interface TaskComparisonChartProps {
     numWeeks: number; 
     isLoading: boolean;
 }
-
 const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType, chartData, numWeeks, isLoading }) => {
     const styles = useStyles();
     const chartRef = React.useRef<Chart<'bar'>>(null);
@@ -229,13 +228,14 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
     };
 
-    // 💡 FIX: Re-introducing the safe calculation for suggestedMax
-    const rawData: number[] = (chartData.datasets[0]?.data as number[]) || [];
+    // === CRITICAL FIX START ===
+    // 1. Safely extract data for suggestedMax calculation. Use optional chaining 
+    //    on 'datasets' to prevent the "Cannot read properties of undefined" error.
+    const rawData: number[] = (chartData.datasets?.[0]?.data as number[]) || [];
     const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
-    
-    // FIX: Increased suggestedMax multiplier from 1.15 to 1.25 (25% buffer) 
-    // to ensure high-volume Provisioning data labels are not cut off.
+    // 2. Use a generous 25% buffer to prevent label cut-off.
     const suggestedMax = maxDataValue * 1.25; 
+    // === CRITICAL FIX END ===
 
     const chartOptions: ChartOptions<"bar"> = {
         responsive: true,
@@ -309,8 +309,9 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
             x: { title: { display: true, text: 'Week' }, grid: { display: false } },
             y: { 
                 title: { display: true, text: 'Total Task Count' }, 
-                min: 0,
-                suggestedMax: suggestedMax, // This passes the calculated max to the chart
+                min: 0, 
+                // CRITICAL: Apply the safely calculated max
+                suggestedMax: suggestedMax 
             }
         },
     };
