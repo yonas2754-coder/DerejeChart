@@ -82,6 +82,11 @@ const useStyles = makeStyles({
     },
     controlGroup: {
         display: 'flex', gap: '24px', alignItems: 'center', flexWrap: 'wrap',
+        "@media (max-width: 768px)": { 
+            flexDirection: 'column', 
+            alignItems: 'stretch', 
+            gap: '12px',
+        },
     },
     sliderContainer: { minWidth: '220px', flexShrink: 0, },
     cardHeaderWithAction: {
@@ -100,7 +105,13 @@ const useStyles = makeStyles({
     kpiTrendPositive: { color: tokens.colorPaletteGreenForeground1, },
     kpiTrendNegative: { color: tokens.colorPaletteRedForeground1, },
     kpiTrendNeutral: { color: tokens.colorNeutralForeground3, },
-    dateControl: { display: 'flex', alignItems: 'center', gap: '12px', },
+    dateControl: { display: 'flex', alignItems: 'center', gap: '12px',
+        "@media (max-width: 768px)": { 
+            flexDirection: 'column', 
+            alignItems: 'stretch', 
+            gap: '12px',
+        },
+     },
     resetButton: { marginTop: '18px', },
     loadingOverlay: {
         position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -197,6 +208,9 @@ const KpiCard: React.FC<KpiCardProps> = ({ taskType, chartData, numWeeks, isLoad
 // =======================================================
 // Task Comparison Chart Card (Weekly Trend)
 // =======================================================
+// =======================================================
+// Task Comparison Chart Card (Weekly Trend)
+// =======================================================
 interface TaskComparisonChartProps {
     taskType: TaskType;
     chartData: WeeklyTrendAPIResponse['weeklyTrend'][TaskType]; 
@@ -214,6 +228,14 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
     const handleDownload = () => {
         downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
     };
+
+    // 💡 FIX: Re-introducing the safe calculation for suggestedMax
+    const rawData: number[] = (chartData.datasets[0]?.data as number[]) || [];
+    const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
+    
+    // FIX: Increased suggestedMax multiplier from 1.15 to 1.25 (25% buffer) 
+    // to ensure high-volume Provisioning data labels are not cut off.
+    const suggestedMax = maxDataValue * 1.25; 
 
     const chartOptions: ChartOptions<"bar"> = {
         responsive: true,
@@ -285,7 +307,11 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         },
         scales: {
             x: { title: { display: true, text: 'Week' }, grid: { display: false } },
-            y: { title: { display: true, text: 'Total Task Count' }, min: 0 }
+            y: { 
+                title: { display: true, text: 'Total Task Count' }, 
+                min: 0,
+                suggestedMax: suggestedMax, // This passes the calculated max to the chart
+            }
         },
     };
     
@@ -311,10 +337,7 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
             </ChartWrapper>
         </Card>
     );
-};
-
-
-// =======================================================
+};// =======================================================
 // Date Dependent Charts
 // =======================================================
 
@@ -630,24 +653,27 @@ export const DashboardCharts: React.FC = () => {
 
                     {/* Comparison Week Slider */}
                     <div className={styles.sliderContainer}>
-                        <Label htmlFor="num-weeks-slider">Weekly Trend Analysis (Weeks)</Label>
-                        <Slider
-                            id="num-weeks-slider"
-                            min={2} max={6} step={1} value={numWeeks}
-                            onChange={(e, data) => setNumWeeks(data.value)}
-                            aria-valuetext={`${numWeeks} Weeks`}
-                        />
-                        <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2 }}>
-                            Viewing **{numWeeks}** weeks of data for comparison.
-                        </div>
+                     <Field label="Weekly Trend Analysis (Weeks)"> 
+                            {/* MOVED: This div is now above the Slider and has a margin to separate it */}
+                            <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground2, marginBottom: '8px' }}>
+                                Viewing **{numWeeks}** weeks of data for comparison.
+                            </div>
+
+                            <Slider
+                                id="num-weeks-slider"
+                                min={2} max={6} step={1} value={numWeeks}
+                                onChange={(e, data) => setNumWeeks(data.value)}
+                                aria-valuetext={`${numWeeks} Weeks`}
+                            />
+                            </Field>
                     </div>
 
                     <Divider vertical />
 
                     {/* Settings/Configuration Button (Placeholder) */}
-                    <Button appearance="subtle" icon={<SettingsRegular />} aria-label="Dashboard Settings">
+                  {/*   <Button appearance="subtle" icon={<SettingsRegular />} aria-label="Dashboard Settings">
                         Settings
-                    </Button>
+                    </Button> */}
                 </div>
             </div>
             
