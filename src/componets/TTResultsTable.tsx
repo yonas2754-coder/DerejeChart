@@ -40,7 +40,8 @@ interface UpdateTicketInput {
     remarks?: string;
 }
 
-const MOCK_CURRENT_USER = { name: "Clicker User", id: "user_clicker_id" };
+const MOCK_CURRENT_USER = { name: "Clicker User", id: "user_clicker_id" }
+
 const allZones: string[] = [
     "All", "EAAZ", "CAAZ", "SAAZ", "NAAZ", "SWAAZ", "WAAZ", "NR Mekele", 
     "NWR Bahirdar", "ER Dire Dawa", "CER Harar", "CNR D Birhan", 
