@@ -40,7 +40,6 @@ ChartJS.register(
     ChartDataLabels
 );
 
-
 // =======================================================
 // Styles & Helpers
 // =======================================================
@@ -208,7 +207,6 @@ const KpiCard: React.FC<KpiCardProps> = ({ taskType, chartData, numWeeks, isLoad
     );
 };
 
-
 // =======================================================
 // Task Comparison Chart Card (Weekly Trend)
 // =======================================================
@@ -230,8 +228,10 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         downloadChartImage(chartRef, `${taskType}_${numWeeks}_Week_Trend_Chart`);
     };
     
-    // FIX: Calculate suggestedMax for Y-axis (value axis) to provide space for top labels.
-    const maxDataValue = Math.max(...chartData.datasets[0].data as number[]);
+    // FIX: Safely calculate maxDataValue with fallback
+    const datasets = chartData?.datasets || [];
+    const firstDatasetData = datasets[0]?.data as number[] || [];
+    const maxDataValue = firstDatasetData.length > 0 ? Math.max(...firstDatasetData) : 10;
     const suggestedMax = maxDataValue * 1.15; // Add 15% buffer to clear top data labels
 
     const chartOptions: ChartOptions<"bar"> = {
@@ -239,15 +239,15 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
         maintainAspectRatio: false,
         plugins: {
             legend: { display: false },
-            title: { display: false }, // FIX: Removed internal chart title to prevent overlap with CardHeader title
+            title: { display: false },
             tooltip: {
                 callbacks: {
                     title: (context) => context[0].label, 
                     label: (context) => `Total Tasks: ${context.formattedValue}`, 
                     afterBody: (context) => {
-                        // Logic for displaying percentage change in the tooltip for the current week only
-                        if (context[0].dataIndex === chartData.labels.length - 1) {
-                            const percentage = chartData.percentageChange;
+                        // Only show percentage change for current week
+                        if (context[0].dataIndex === chartData?.labels?.length - 1) {
+                            const percentage = chartData?.percentageChange || 0;
                             const sign = percentage >= 0 ? '▲' : '▼'; 
                             const indicator = percentage === 0 
                                 ? '±0%' 
@@ -263,17 +263,16 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
                 align: 'top',
                 offset: 4,
                 formatter: (value: number, context) => {
-                    const isCurrentWeek = context.dataIndex === chartData.labels.length - 1;
+                    const isCurrentWeek = context.dataIndex === chartData?.labels?.length - 1;
                     if (isCurrentWeek) {
-                        return value.toString(); // Show count for current week
+                        return value.toString();
                     } 
                     
-                    // Logic to display change vs. current week for past weeks (Advanced)
-                    const currentWeekTotal = chartData.currentWeekTotal;
+                    // Safely calculate change vs. current week
+                    const currentWeekTotal = chartData?.currentWeekTotal || 0;
                     const priorWeekTotal = value;
                     
                     if (priorWeekTotal === 0 && currentWeekTotal === 0) { return 'N/A'; }
-                    
                     if (priorWeekTotal === 0 && currentWeekTotal > 0) { return `+${currentWeekTotal} T`; }
                     if (currentWeekTotal === 0 && priorWeekTotal > 0) { return `-${priorWeekTotal} T`; }
                     
@@ -284,11 +283,11 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
                     return [`${sign}${absPercentage.toFixed(1)}%`, `Total: ${value}`];
                 },
                 color: (context) => {
-                    const isCurrentWeek = context.dataIndex === chartData.labels.length - 1;
+                    const isCurrentWeek = context.dataIndex === chartData?.labels?.length - 1;
                     if (isCurrentWeek) { return tokens.colorNeutralForeground1; } 
                     
                     const priorWeekTotal = context.dataset.data[context.dataIndex] as number;
-                    const currentWeekTotal = chartData.currentWeekTotal;
+                    const currentWeekTotal = chartData?.currentWeekTotal || 0;
                     
                     if (priorWeekTotal === 0 && currentWeekTotal === 0) { return tokens.colorNeutralForeground3; }
                     if (priorWeekTotal === 0 && currentWeekTotal > 0) { return tokens.colorPaletteRedForeground1; }
@@ -307,20 +306,21 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
             y: { 
                 title: { display: true, text: 'Total Task Count' }, 
                 min: 0,
-                suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                suggestedMax: suggestedMax,
             }
         },
     };
     
-    // Apply bar thickness directly to the dataset
-    const updatedDatasets = chartData.datasets.map(dataset => ({
+    // Safely apply bar thickness
+    const updatedDatasets = datasets.map(dataset => ({
         ...dataset,
-        maxBarThickness: 40, // Applied maxBarThickness
+        maxBarThickness: 40,
     }));
 
     const updatedChartData = {
         ...chartData,
-        datasets: updatedDatasets
+        datasets: updatedDatasets,
+        labels: chartData?.labels || []
     };
 
     return (
@@ -330,12 +330,15 @@ const TaskComparisonChartCard: React.FC<TaskComparisonChartProps> = ({ taskType,
                 <Button appearance="subtle" icon={<ArrowDownloadRegular />} onClick={handleDownload} size="small"/>
             </div>} />
             <ChartWrapper isLoading={isLoading}>
-                <Bar ref={chartRef} data={updatedChartData} options={chartOptions}/>
+                <Bar 
+                    ref={chartRef} 
+                    data={updatedChartData} 
+                    options={chartOptions}
+                />
             </ChartWrapper>
         </Card>
     );
 };
-
 
 // =======================================================
 // Date Dependent Charts
@@ -347,22 +350,23 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
     const chartTitle = "Handler Performance: Total Tasks (Stacked)";
     const handleDownload = () => downloadChartImage(chartRef, 'Handler_Performance_Chart');
 
-    // Apply bar thickness directly to the dataset
-    const updatedDatasets = data.handlerPerformance.datasets.map(dataset => ({
+    // Safely access and update datasets
+    const datasets = data?.handlerPerformance?.datasets || [];
+    const updatedDatasets = datasets.map(dataset => ({
         ...dataset,
-        maxBarThickness: 40, // Applied maxBarThickness
+        maxBarThickness: 40,
     }));
 
     const updatedChartData = {
         ...data.handlerPerformance,
-        datasets: updatedDatasets
+        datasets: updatedDatasets,
+        labels: data?.handlerPerformance?.labels || []
     };
 
-    // FIX: Calculate suggestedMax for X-axis (the value axis) to provide space for right-side labels.
-    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
-    // Get max of all individual data points for a generous buffer in stacked bar total
+    // FIX: Safely calculate suggestedMax
+    const allData = updatedDatasets.flatMap(d => d.data as number[] || []);
     const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
-    const suggestedMax = maxDataValue * 1.20; // Add 20% buffer
+    const suggestedMax = maxDataValue * 1.20;
 
     return (
         <Card className={styles.chartCard}>
@@ -375,12 +379,12 @@ const HandlerPerformanceChart: React.FC<{ data: DashboardAPIResponse; selectedDa
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false, 
                     plugins: { 
                         legend: { display: true, position: 'bottom' as const }, 
-                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false }
                     },
                     scales: { 
                         x: { 
                             stacked: true, grid: { display: true }, title: { display: true, text:'Task Count' },
-                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for right-side clearance
+                            suggestedMax: suggestedMax,
                         }, 
                         y: { stacked: true, grid: { display: false } } 
                     }
@@ -396,22 +400,23 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
     const chartTitle = "Task Volume by Zone/Region (Grouped)";
     const handleDownload = () => downloadChartImage(chartRef, 'Zonal_Task_Volume_Chart');
     
-    // Apply bar thickness directly to the dataset
-    const updatedDatasets = data.zonalTasks.datasets.map(dataset => ({
+    // Safely access and update datasets
+    const datasets = data?.zonalTasks?.datasets || [];
+    const updatedDatasets = datasets.map(dataset => ({
         ...dataset,
-        maxBarThickness: 40, // Applied maxBarThickness
+        maxBarThickness: 40,
     }));
 
     const updatedChartData = {
         ...data.zonalTasks,
-        datasets: updatedDatasets
+        datasets: updatedDatasets,
+        labels: data?.zonalTasks?.labels || []
     };
 
-    // FIX: Calculate suggestedMax for Y-axis (value axis)
-    const allData = updatedChartData.datasets.flatMap(d => d.data as number[]);
+    // FIX: Safely calculate suggestedMax
+    const allData = updatedDatasets.flatMap(d => d.data as number[] || []);
     const maxDataValue = allData.length > 0 ? Math.max(...allData.filter(v => v !== null)) : 10;
-    const suggestedMax = maxDataValue * 1.15; // Add 15% buffer for top label clearance
-
+    const suggestedMax = maxDataValue * 1.15;
 
     return (
         <Card className={styles.chartCard}>
@@ -423,14 +428,14 @@ const ZonalTaskVolumeChart: React.FC<{ data: DashboardAPIResponse; selectedDate:
                 <Bar ref={chartRef} data={updatedChartData} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false }
                     },
-                    scales: { // FIX: Added explicit scales object
+                    scales: {
                         x: { title: { display: true, text: 'Zone/Region' } },
                         y: {
                             title: { display: true, text: 'Task Count' },
                             min: 0,
-                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                            suggestedMax: suggestedMax,
                         }
                     } 
                 }} />
@@ -455,7 +460,7 @@ const TaskDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate
                 <Doughnut ref={chartRef} data={data.distribution} options={{ 
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { position: 'bottom' as const },
-                        title: { display: false } // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false }
                     }
                 }} />
             </ChartWrapper>
@@ -476,7 +481,6 @@ const SPECIFIC_REQUEST_COLORS = [
     'rgba(100, 100, 100, 0.8)', 
 ];
 
-
 const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIResponse; selectedDate: Date; isLoading: boolean; className?: string }> = ({ data, selectedDate, isLoading, className }) => {
     const styles = useStyles();
     const chartRef = React.useRef<Chart<"bar">>(null); 
@@ -490,7 +494,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
         const labels: string[] = (data.specificRequests?.labels as string[] | undefined) || []; 
         
         // FIX: Safely access rawData and cast them to number[]
-        const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
+        const rawData: number[] = (data.specificRequests?.datasets?.[0]?.data as number[] | undefined) || []; 
 
         if (labels.length === 0) {
             // Must return the fully typed empty structure
@@ -526,11 +530,10 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
     }, [data.specificRequests]);
 
     // Determine the maximum value for suggestedMax
-    const rawData: number[] = (data.specificRequests?.datasets[0]?.data as number[] | undefined) || []; 
+    const rawData: number[] = (data.specificRequests?.datasets?.[0]?.data as number[] | undefined) || []; 
     const maxDataValue = rawData.length > 0 ? Math.max(...rawData) : 10;
     // Add a 15% buffer to the maximum value to ensure datalabels are not clipped
     const suggestedMax = maxDataValue * 1.15; 
-
 
     return (
         // Use the doubleHeightCard style
@@ -550,7 +553,7 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                             position: 'bottom', 
                             labels: { padding: 10 }
                         },
-                        title: { display: false }, // FIX: Removed internal chart title to prevent overlap
+                        title: { display: false },
                         tooltip: {
                             // Tooltip customized for sparse data
                             callbacks: {
@@ -562,20 +565,20 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
                     },
                     scales: {
                         x: { 
-                            title: { display: true, text: 'Specific Request Type', padding: 10 }, // FIX: Added padding to x-axis title
-                            stacked: true, // Makes the single bars overlay correctly
+                            title: { display: true, text: 'Specific Request Type', padding: 10 },
+                            stacked: true,
                             ticks: { 
                                 autoSkip: false, 
                                 maxRotation: 45, 
-                                minRotation: 45 // Enforce 45-degree rotation
+                                minRotation: 45
                             } 
                         }, 
                         y: { 
                             display: true, 
                             title: { display: true, text: 'Number of Tasks' }, 
                             min: 0,
-                            stacked: true, // Stacks the scale
-                            suggestedMax: suggestedMax, // FIX: Added suggestedMax for datalabel clearance
+                            stacked: true,
+                            suggestedMax: suggestedMax,
                         } 
                     }
                 }} />
@@ -583,7 +586,6 @@ const SpecificRequestTypeDistributionChart: React.FC<{ data: DashboardAPIRespons
         </Card>
     );
 };
-
 
 const HistoryLineChart: React.FC<{ data: DashboardAPIResponse; isLoading: boolean }> = ({ data, isLoading }) => {
     const styles = useStyles();
@@ -600,7 +602,7 @@ const HistoryLineChart: React.FC<{ data: DashboardAPIResponse; isLoading: boolea
             <ChartWrapper isLoading={isLoading}>
                 <Line ref={chartRef} data={data.taskHistory} options={{
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, title: { display: false } }, // FIX: Removed internal chart title to prevent overlap
+                    plugins: { legend: { display: false }, title: { display: false } },
                     scales: {
                         x: { grid: { display: false }, title: { display: true, text: 'Date' } },
                         y: { grid: { display: true }, title: { display: true, text: 'Task Count' }, min: 0 },
@@ -726,7 +728,7 @@ export const DashboardCharts: React.FC = () => {
                 <TaskComparisonChartCard 
                     taskType="Others" chartData={weeklyTrend.Others} numWeeks={numWeeks} isLoading={isTrendLoading}
                 />
-                <HistoryLineChart data={data} isLoading={isTrendLoading} />
+                <HistoryLineChart data={data} isLoading={isTrendLoading || isDateLoading} />
             </div>
 
             <Divider />
