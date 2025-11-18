@@ -113,7 +113,10 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
     
     // FIX: Use UTC-safe startOfWeek helper
     const currentWeekStart = getStartOfWeekUTC(nowUTC, { weekStartsOn: 1 });
-    const chartDataEndExclusive = getStartOfWeekUTC(addDays(nowUTC, 7), { weekStartsOn: 1 }); 
+    
+    // 💡 CRITICAL FIX 1: Use addDays(7) relative to the currentWeekStart. 
+    // This is the cleanest way to define the exclusive end of the entire fetch range in UTC.
+    const chartDataEndExclusive = addDays(currentWeekStart, 7); 
     
     const chartDataStart = getStartOfWeekUTC(subWeeks(currentWeekStart, numWeeks - 1), { weekStartsOn: 1 });
 
@@ -132,7 +135,9 @@ export async function getWeeklyClassificationComparisonData(numWeeks: number): P
         for (let i = numWeeks - 1; i >= 0; i--) {
             // FIX: Use UTC-safe startOfWeek helper
             const weekStart = getStartOfWeekUTC(subWeeks(currentWeekStart, i), { weekStartsOn: 1 });
-            const weekEndExclusive = getStartOfWeekUTC(addDays(subWeeks(currentWeekStart, i), 7), { weekStartsOn: 1 }); 
+            
+            // 💡 CRITICAL FIX 2: Use simple addDays(7) for the individual week's exclusive boundary.
+            const weekEndExclusive = addDays(weekStart, 7); 
 
             const count = typeTasks.filter(t => 
                 t.createdAt.getTime() >= weekStart.getTime() && 
