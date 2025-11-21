@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "../componets/providers";
 import "./globals.css";
 
+import AutoLogout from "@/componets/AutoLogout";
+
 import { SessionProvider } from "@/componets/SessionProvider";
 
 import QueryProvider from "@/componets/QueryProvider";
@@ -37,7 +39,7 @@ export default function RootLayout({
          <QueryProvider>  
         <SessionProvider>
         <Providers>
-     
+     <AutoLogout /> {/* Place it here */}
         {children}
     
          </Providers>

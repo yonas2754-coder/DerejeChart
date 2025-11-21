@@ -16,7 +16,7 @@ import {
 
 // --- ENTERPRISE BRANDING & CSS VALUES ---
 const BRAND_PRIMARY = '#A5D166'; // Primary Green 
-const BRAND_HOVER = '#00AB4E';   // Darker Green for Hover (Strong visual feedback)
+const BRAND_HOVER = '#8DC63F';   // Darker Green for Hover (Strong visual feedback)
 const TEXT_COLOR = '#333333';    // Standard Body Text
 const BG_COLOR = '#FFFFFF';      // Card Background
 const ERROR_COLOR = '#ED1C24';    // Error Red
